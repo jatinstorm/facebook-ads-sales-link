@@ -13,7 +13,9 @@ def get_asin(edition_ids):
             e.ID AS Edition_ID,
             e.Title,
             MIN(eb.ASIN) AS ASIN,
-            MIN(p.ISBN) AS paperback_isbn
+            MIN(p.ISBN) AS paperback_isbn,
+            MIN(e.Genre) AS Genre,
+            MIN(e.Genre_Subgenre) AS Genre_Subgenre
         FROM `storm-pub-amazon-sales.airtable.awe_editions` e
         LEFT JOIN `storm-pub-amazon-sales.airtable.awe_editions` eb
             ON e.Title = eb.Title

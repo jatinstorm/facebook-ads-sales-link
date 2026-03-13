@@ -39,7 +39,8 @@ def get_sales(asins, isbns):
         ASIN,
         Date AS sale_date,
         CASE WHEN Marketplace = 'Amazon.co.uk' THEN 'GB' ELSE 'US' END AS Territory,
-        SUM(KENP) AS kenp
+        SUM(KENP) AS kenp,
+        SUM(Royalty_GBP) AS kenp_revenue
     FROM `storm-pub-amazon-sales.daily_sales.daily_sales_kenp_agg`
     WHERE Date = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
     AND ASIN IN ({asin_list})

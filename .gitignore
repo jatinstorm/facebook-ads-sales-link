@@ -3,3 +3,10 @@ venv
 __pycache__
 *.pyc
 service_account.json
+genre_analysis.py
+generate_reports.py
+generate_insights.py
+generate_scorecards.py
+genre_reports
+scorecards
+weekly_reports

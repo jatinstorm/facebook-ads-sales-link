@@ -76,6 +76,7 @@ def run_pipeline():
     final["kenp"] = final["kenp"].fillna(0)
     final["ebook_revenue"] = final["ebook_revenue"].fillna(0)
     final["paperback_revenue"] = final["paperback_revenue"].fillna(0)
+    final["kenp_revenue"] = final["kenp_revenue"].fillna(0)
 
     # 9. Deduplicate sales across adsets
     # Ebook: dedup by ASIN + date + Territory
@@ -88,8 +89,7 @@ def run_pipeline():
     kenp_dup = final.duplicated(
         subset=["ASIN", "date_start", "Territory"], keep="first"
     )
-    final.loc[kenp_dup, ["kenp"]] = 0
-
+    final.loc[kenp_dup, ["kenp", "kenp_revenue"]] = 0
     # Paperback: dedup by ISBN + date + Territory
     paperback_dup = final.duplicated(
         subset=["paperback_isbn", "date_start", "Territory"], keep="first"
@@ -113,7 +113,8 @@ def run_pipeline():
             "Age_range", "date_start", "sale_date", "spend", "clicks",
             "cpc", "ctr", "impressions", "ASIN", "adset_name", "Title",
             "paperback_isbn", "ebook_units", "paperback_units", "kenp",
-            "ebook_revenue", "paperback_revenue"
+            "ebook_revenue", "paperback_revenue", "Genre", "Genre_Subgenre",
+            "kenp_revenue"
         ]
     ]
 
