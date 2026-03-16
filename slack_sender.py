@@ -138,13 +138,14 @@ def extract_edition_id(filename):
     return None
 
 
+from collections import defaultdict
+
 def send_reports(report_type, local_filepaths):
     """
-    Upload reports to GCS, send to Slack, clean up.
-    
-    report_type: 'scorecard', 'genre', 'weekly'
-    local_filepaths: list of local file paths
+    Send reports to Slack grouped by Edition_ID.
+    GB and US reports for the same book will appear under one message.
     """
+
     if not SLACK_BOT_TOKEN:
         print("SLACK_BOT_TOKEN not set — skipping Slack delivery")
         return 0
@@ -156,9 +157,12 @@ def send_reports(report_type, local_filepaths):
     print(f"\nSending {len(local_filepaths)} {report_type} reports to Slack...\n")
 
     channel_map = get_channel_mapping()
-    
+
     sent = 0
     skipped = 0
+
+    # Group files by edition_id
+    grouped = defaultdict(list)
 
     for filepath in local_filepaths:
         edition_id = extract_edition_id(filepath)
@@ -167,6 +171,11 @@ def send_reports(report_type, local_filepaths):
             print(f"  ⚠ Could not extract Edition ID from: {filepath}")
             skipped += 1
             continue
+
+        grouped[edition_id].append(filepath)
+
+    # Send grouped reports
+    for edition_id, files in grouped.items():
 
         info = channel_map.get(edition_id)
         if not info:
@@ -182,31 +191,39 @@ def send_reports(report_type, local_filepaths):
             skipped += 1
             continue
 
-        
-
-        # Build Slack message
         messages = {
-            "scorecard": f"📊 Daily Genre Analysis: *{book_title}*",
+            "scorecard": f"📊 Daily Facebook Ads Analysis: *{book_title}*",
             "genre": f"📈 Genre Analysis: *{book_title}*",
             "weekly": f"📋 Weekly Report: *{book_title}*",
         }
+
         message = messages.get(report_type, f"📄 Report: *{book_title}*")
-        title = f"{book_title} - {report_type.replace('_', ' ').title()}"
 
-        # Send to Slack (use local file since it's still available)
-        success = upload_file_to_slack(channel_id, filepath, title, message)
+        first = True
 
-        if success:
-            print(f"  ✓ {book_title} → {channel_name}")
-            sent += 1
-        else:
-            skipped += 1
+        for filepath in files:
 
-        time.sleep(0.5)
+            title = os.path.basename(filepath)
 
+            success = upload_file_to_slack(
+                channel_id,
+                filepath,
+                title,
+                message if first else None
+            )
 
+            first = False
 
-    # Clean up local files
+            if success:
+                print(f"  ✓ Sent {title} → {channel_name}")
+            else:
+                skipped += 1
+
+            time.sleep(0.5)
+
+        sent += 1
+
+    # Clean up files
     for filepath in local_filepaths:
         try:
             os.remove(filepath)
@@ -214,6 +231,7 @@ def send_reports(report_type, local_filepaths):
             pass
 
     print(f"\nDone! Sent: {sent}, Skipped: {skipped}")
+
     return sent
 
 
