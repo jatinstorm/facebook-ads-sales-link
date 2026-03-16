@@ -95,7 +95,8 @@ def weekly():
             return jsonify({"status": "no_active_campaigns"}), 200
 
         # Generate weekly reports
-        date_arg = request.json.get("date") if request.is_json else None
+        data = request.get_json(silent=True) or {}
+        date_arg = data.get("date")
         files = generate_all_weekly_reports(date_arg)
 
         # Filter to active editions only
