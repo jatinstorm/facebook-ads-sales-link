@@ -16,7 +16,7 @@ except ImportError:
     get_client = None
 
 
-OUTPUT_DIR = "weekly_reports"
+OUTPUT_DIR = os.getenv("WEEKLY_OUTPUT_DIR", "weekly_reports")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
@@ -285,22 +285,68 @@ def generate_territory_report(title, edition_id, territory, df, dates):
 # AD PERFORMANCE
 # ------------------------------------------------------------
 
+    # ------------------------------------------------------------
+# AD PERFORMANCE
+# ------------------------------------------------------------
+
     ax = fig.add_subplot(gs_charts[0])
 
-    ax.bar(x, clicks, color=C["chart_blue"])
+    # Bars → Clicks
+    bars = ax.bar(x, clicks, color=C["chart_blue"], label="Clicks")
 
+    # Line → CPC
     ax2 = ax.twinx()
-    ax2.plot(x, cpc, color=C["chart_red"], marker="o")
+    cpc_line, = ax2.plot(
+        x,
+        cpc,
+        color=C["chart_red"],
+        marker="o",
+        linewidth=2.5,
+        markersize=6,
+        label="CPC"
+    )
 
-    ax3 = ax.twinx()
-    ax3.spines["right"].set_position(("outward", 40))
-    ax3.plot(x, ctr, color=C["chart_gold"], marker="o")
-
+    # Title
     ax.set_title("Ad Performance")
 
+    # Axis labels
+    ax.set_ylabel("Clicks")
+    ax2.set_ylabel("CPC (£)")
+
+    # X labels
     ax.set_xticks(x)
     ax.set_xticklabels([d.strftime("%a\n%d") for d in dates])
 
+    # Grid
+    ax.grid(axis="y", color=C["grid"], linestyle="--", alpha=0.5)
+
+    # ------------------------------------------------------------
+    # CTR labels above bars
+    # ------------------------------------------------------------
+
+    for i, v in enumerate(ctr):
+
+        ax.text(
+            i,
+            clicks[i] * 0.9,
+            f"CTR: {v:.1f}%",
+            ha="center",
+            va="top",
+            fontsize=9,
+            color="black",
+            bbox=dict(
+                facecolor="white",
+                edgecolor="none",
+                alpha=0.7,
+                boxstyle="round,pad=0.2"
+            )
+        )
+
+    # ------------------------------------------------------------
+    # Legend
+    # ------------------------------------------------------------
+
+    ax.legend([bars[0], cpc_line], ["Clicks", "CPC"], loc="upper left")
 
 # ------------------------------------------------------------
 # FINANCIAL PERFORMANCE
@@ -318,8 +364,19 @@ def generate_territory_report(title, edition_id, territory, df, dates):
 
     ax.set_title("Financial Performance")
 
+    ax.set_ylabel("£ Spend / Revenue")
+    ax2.set_ylabel("£ Profit")
+
     ax.set_xticks(x)
     ax.set_xticklabels([d.strftime("%a\n%d") for d in dates])
+
+    ax.grid(axis="y", color=C["grid"])
+
+    from matplotlib.lines import Line2D
+    profit_line = Line2D([0], [0], color=C["chart_gold"], marker="o", label="Gross Profit")
+    handles, labels = ax.get_legend_handles_labels()
+    handles.append(profit_line)
+    ax.legend(handles=handles, loc="upper left")
 
 
 # ------------------------------------------------------------
@@ -341,6 +398,12 @@ def generate_territory_report(title, edition_id, territory, df, dates):
     ax.set_xticks(x)
     ax.set_xticklabels([d.strftime("%a\n%d") for d in dates])
 
+    ax.set_title("Sales Units")
+    ax.set_ylabel("Units Sold")
+    ax.set_xlabel("Day")
+    ax.legend()
+    ax.grid(axis="y", color=C["grid"])
+
 
 # ------------------------------------------------------------
 # KENP
@@ -356,6 +419,10 @@ def generate_territory_report(title, edition_id, territory, df, dates):
 
     ax.set_xticks(x)
     ax.set_xticklabels([d.strftime("%a\n%d") for d in dates])
+
+    ax.set_ylabel("Pages Read")
+    ax.set_xlabel("Day")
+    ax.grid(axis="y", color=C["grid"])
 
 
 # ------------------------------------------------------------
