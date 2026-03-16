@@ -51,7 +51,12 @@ GENRE_COLORS = {
 def fetch_data(date=None):
     """Fetch active campaigns + genre benchmarks."""
     client = get_client()
-    date_filter = f"DATE('{date}')" if date else "DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)"
+    date_filter = f"DATE('{date}')" if date else """
+    (
+    SELECT MAX(date_start)
+    FROM `marketing-489109.facebook_ads.ads_sales_analytics`
+    )
+    """
 
     # Yesterday's active campaigns per book per territory
     active_query = f"""
