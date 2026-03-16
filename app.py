@@ -34,19 +34,28 @@ def scorecards():
         from genre_analysis import generate_all
         from slack_sender import send_reports
 
-        date = request.json.get("date") if request.is_json else None
+        data = request.get_json(silent=True) or {}
+        date = data.get("date")
+        print("Starting scorecard generation...")
+        print("Using date:", date)
+
         files = generate_all(date)
+        print(f"Generated {len(files)} reports")
+
+        print("Sending reports to Slack...")
         sent = send_reports("scorecard", files)
+
+        print(f"Slack upload complete. Sent {sent} reports")
 
         return jsonify({
             "status": "success",
             "generated": len(files),
             "sent": sent,
         }), 200
+
     except Exception as e:
         print(f"Scorecards failed:\n{traceback.format_exc()}")
         return jsonify({"status": "error", "message": str(e)}), 500
-
 
 @app.route("/weekly", methods=["POST"])
 def weekly():
