@@ -117,7 +117,7 @@ def daily():
 
         # Step 4: Generate genre analysis cards and send to Slack
         from genre_analysis import generate_all
-        from send_to_slack import send_reports
+        from slack_sender import send_reports
 
         files = generate_all()
 
