@@ -3,3 +3,6 @@ venv
 __pycache__
 *.pyc
 service_account.json
+genre_reports/
+weekly_reports/
+launch_reports/
