@@ -193,6 +193,9 @@ def generate_territory_report(title, edition_id, territory, df, dates):
 
     if not dates:
         return None
+    
+    if len(dates) < 2:
+        return None
 
 
 # ------------------------------------------------------------

@@ -400,9 +400,8 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
             run_days = y_data.get("run_days", 1)
 
             book_val = y_data.get(book_key, 0)
-            if run_days > 0:
+            if book_key not in ["cpc", "ctr", "roi"] and run_days > 0:
                 book_val = book_val / run_days
-
             bench_val = b_data.get(bench_key, 0)
             sig = signal(book_val, bench_val, lower_better)
 

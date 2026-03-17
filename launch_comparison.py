@@ -1,11 +1,11 @@
-# generate_launch_comparison.py
+# launch_comparison.py
 """
-Book launch comparison:
-- This book's first month performance
-- vs all books' first month average
-- vs same author's first month average
-- vs same pub-month cohort (books published same month)
-- vs same genre first month average
+Book launch comparison with three time periods:
+- First 30 days (from daily sales)
+- First 90 days (from daily sales) — only if book is 90+ days old
+- First 12 months (from monthly sales) — only if book is 12+ months old
+
+Compares: This book vs All books avg vs Author avg vs Pub month cohort vs Genre avg
 """
 import matplotlib
 matplotlib.use("Agg")
@@ -14,13 +14,14 @@ import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 import os
+from datetime import date, timedelta
 
 try:
     from bq import get_client
 except ImportError:
     get_client = None
 
-OUTPUT_DIR = "launch_reports"
+OUTPUT_DIR = os.getenv("LAUNCH_OUTPUT_DIR", "launch_reports")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 C = {
@@ -44,11 +45,104 @@ C = {
     "author": "#8B5CF6",
     "cohort": "#F59E0B",
     "genre": "#00B894",
+    "period_30": "#E94560",
+    "period_90": "#0984E3",
+    "period_12m": "#8B5CF6",
 }
 
 
-def fetch_launch_data(target_edition_id=None):
-    """Fetch first-month performance for all books."""
+def fetch_daily_launch_data(days=30):
+    client = get_client()
+
+    query = f"""
+    WITH book_info AS (
+        SELECT
+            e.ID AS edition_id,
+            e.Title AS title,
+            e.Cover_Author AS author,
+            e.Pub_Date AS pub_date,
+            e.Genre AS genre,
+            e.Genre_Subgenre AS genre_subgenre,
+            FORMAT_DATE('%Y-%m', e.Pub_Date) AS pub_month,
+            MIN(eb.ASIN) AS asin,
+            CAST(MIN(p.ISBN) AS STRING) AS isbn
+        FROM `storm-pub-amazon-sales.airtable.awe_editions` e
+        JOIN `storm-pub-amazon-sales.airtable.awe_editions` eb
+            ON e.Title = eb.Title AND eb.Format = 'Ebook'
+        LEFT JOIN `storm-pub-amazon-sales.airtable.awe_editions` p
+            ON e.Title = p.Title AND p.Format = 'POD'
+        WHERE e.Format = 'Ebook' AND e.Pub_Date IS NOT NULL
+        GROUP BY e.ID, e.Title, e.Cover_Author, e.Pub_Date, e.Genre, e.Genre_Subgenre
+    ),
+    ebook_sales AS (
+        SELECT b.edition_id, b.title, b.author, b.pub_date, b.genre, b.genre_subgenre, b.pub_month,
+            CASE WHEN s.Marketplace = 'Amazon.co.uk' THEN 'GB' ELSE 'US' END AS territory,
+            SUM(IFNULL(s.Net_Units_Sold, 0)) AS ebook_units,
+            SUM(IFNULL(s.Royalty_GBP, 0)) AS ebook_revenue
+        FROM book_info b
+        JOIN `storm-pub-amazon-sales.daily_sales.daily_sales_ebook_agg` s
+            ON b.asin = s.ASIN
+            AND s.Royalty_Date BETWEEN b.pub_date AND DATE_ADD(b.pub_date, INTERVAL {days - 1} DAY)
+        GROUP BY b.edition_id, b.title, b.author, b.pub_date, b.genre, b.genre_subgenre, b.pub_month, territory
+    ),
+    pb_sales AS (
+        SELECT b.edition_id,
+            CASE WHEN s.Marketplace = 'Amazon.co.uk' THEN 'GB' ELSE 'US' END AS territory,
+            SUM(IFNULL(s.Net_Units_Sold, 0)) AS pb_units,
+            SUM(IFNULL(s.Royalty_GBP, 0)) AS pb_revenue
+        FROM book_info b
+        JOIN `storm-pub-amazon-sales.daily_sales.daily_sales_paperback_agg` s
+            ON b.isbn = CAST(s.ISBN AS STRING)
+            AND s.Royalty_Date BETWEEN b.pub_date AND DATE_ADD(b.pub_date, INTERVAL {days - 1} DAY)
+        WHERE b.isbn IS NOT NULL
+        GROUP BY b.edition_id, territory
+    )
+    SELECT
+        e.edition_id, e.title, e.author, e.pub_date, e.genre, e.genre_subgenre, e.pub_month, e.territory,
+        e.ebook_units + IFNULL(p.pb_units, 0) AS units,
+        e.ebook_revenue + IFNULL(p.pb_revenue, 0) AS revenue
+    FROM ebook_sales e
+    LEFT JOIN pb_sales p ON e.edition_id = p.edition_id AND e.territory = p.territory
+    """
+
+    return client.query(query).to_dataframe()
+
+   
+
+
+def fetch_daily_kenp_data(days=30):
+    """Fetch first N days KENP from daily kenp table."""
+    client = get_client()
+
+    query = f"""
+    WITH book_info AS (
+        SELECT
+            e.ID AS edition_id,
+            e.Pub_Date AS pub_date,
+            MIN(eb.ASIN) AS asin
+        FROM `storm-pub-amazon-sales.airtable.awe_editions` e
+        JOIN `storm-pub-amazon-sales.airtable.awe_editions` eb
+            ON e.Title = eb.Title AND eb.Format = 'Ebook'
+        WHERE e.Format = 'Ebook' AND e.Pub_Date IS NOT NULL
+        GROUP BY e.ID, e.Pub_Date
+    )
+    SELECT
+        b.edition_id,
+        CASE WHEN k.Marketplace = 'Amazon.co.uk' THEN 'GB' ELSE 'US' END AS territory,
+        SUM(IFNULL(k.KENP, 0)) AS kenp,
+        SUM(IFNULL(k.Royalty_GBP, 0)) AS kenp_revenue
+    FROM book_info b
+    JOIN `storm-pub-amazon-sales.daily_sales.daily_sales_kenp_agg` k
+        ON b.asin = k.ASIN
+        AND k.Date BETWEEN b.pub_date AND DATE_ADD(b.pub_date, INTERVAL {days - 1} DAY)
+    GROUP BY b.edition_id, territory
+    """
+
+    return client.query(query).to_dataframe()
+
+
+def fetch_monthly_launch_data():
+    """Fetch first 12 months from monthly sales."""
     client = get_client()
 
     query = """
@@ -67,28 +161,16 @@ def fetch_launch_data(target_edition_id=None):
     FROM `storm-pub-amazon-sales.airtable.awe_editions` e
     JOIN `storm-pub-amazon-sales.monthly_sales.monthly_sales` m
         ON e.ID = m.edition_id
-        AND DATE_TRUNC(e.Pub_Date, MONTH) = m.date
-    WHERE e.Format = 'Ebook'
-        AND e.Pub_Date IS NOT NULL
+        AND m.date BETWEEN DATE_TRUNC(e.Pub_Date, MONTH) AND DATE_ADD(DATE_TRUNC(e.Pub_Date, MONTH), INTERVAL 11 MONTH)
+    WHERE e.Format = 'Ebook' AND e.Pub_Date IS NOT NULL
     GROUP BY e.ID, e.Title, e.Cover_Author, e.Pub_Date, e.Genre, e.Genre_Subgenre, pub_month, territory
     """
 
-    df = client.query(query).to_dataframe()
-    return df
-
-
-def aggregate(df):
-    """Aggregate metrics from a filtered dataframe."""
-    return {
-        "units": df["units"].sum(),
-        "revenue": df["revenue"].sum(),
-        "kenp": df["kenp"].sum(),
-        "books": df["edition_id"].nunique() if "edition_id" in df.columns else 0,
-    }
+    return client.query(query).to_dataframe()
 
 
 def avg_per_book(df):
-    """Calculate average per book from grouped data."""
+    """Average metrics per book from grouped data."""
     if df.empty:
         return {"units": 0, "revenue": 0, "kenp": 0, "books": 0}
     grouped = df.groupby("edition_id").agg({
@@ -96,10 +178,18 @@ def avg_per_book(df):
     }).reset_index()
     n = len(grouped)
     return {
-        "units": grouped["units"].mean() if n > 0 else 0,
-        "revenue": grouped["revenue"].mean() if n > 0 else 0,
-        "kenp": grouped["kenp"].mean() if n > 0 else 0,
-        "books": n,
+            "units": grouped["units"].median() if n > 0 else 0,
+            "revenue": grouped["revenue"].median() if n > 0 else 0,
+            "kenp": grouped["kenp"].median() if n > 0 else 0,
+            "books": n,
+        }
+
+
+def aggregate(df):
+    return {
+        "units": df["units"].sum() if not df.empty else 0,
+        "revenue": df["revenue"].sum() if not df.empty else 0,
+        "kenp": df["kenp"].sum() if not df.empty else 0,
     }
 
 
@@ -118,7 +208,6 @@ def fn(val):
 
 
 def pct_vs(book_val, avg_val):
-    """Return percentage difference and color."""
     if avg_val == 0:
         return "--", C["text_light"]
     diff = ((book_val - avg_val) / avg_val) * 100
@@ -128,29 +217,50 @@ def pct_vs(book_val, avg_val):
 
 
 def generate_book_launch_card(title, edition_id, author, pub_date, genre, subgenre,
-                               book_data, all_avg, author_avg, cohort_avg, genre_avg):
-    """Generate a launch comparison card."""
+                               periods_data):
+    """
+    Generate a launch card with multiple time periods.
+    periods_data = {
+        "30d": {"book": {terr: metrics}, "all": {terr: metrics}, "author": ..., "cohort": ..., "genre": ...},
+        "90d": {...},  # or None if not enough data
+        "12m": {...},  # or None if not enough data
+    }
+    """
 
-    territories = sorted(book_data.keys())
-    if not territories:
+    available_periods = [(k, v) for k, v in periods_data.items() if v is not None]
+    if not available_periods:
         return None
 
-    n_terr = len(territories)
+    # Collect all territories across all periods
+    all_territories = set()
+    for _, pdata in available_periods:
+        all_territories.update(pdata["book"].keys())
+    territories = sorted(all_territories)
+
+    if not territories:
+        return None
 
     # Layout
     row_h = 0.4
     header_h = 1.8
     label_w = 3.5
     col_w = 2.2
-    n_cols = 5  # This Book, All Books Avg, Author Avg, Cohort Avg, Genre Avg
-    fig_w = label_w + (n_cols * col_w * n_terr) + 1.0
-    # Keep it simpler — one territory at a time, stack vertically
+    n_cols = 5  # This Book, All Books, Author, Cohort, Genre
+    comp_labels_base = ["This Book", "All Books Avg", "Author Avg", "Pub Month Cohort", "Genre Avg"]
+    comp_colors = [C["this_book"], C["all_books"], C["author"], C["cohort"], C["genre"]]
+
     metrics = ["Units Sold", "Revenue", "KENP"]
-    comparisons = ["This Book", "All Books Avg", "Author Avg", "Pub Month Cohort", "Genre Avg"]
-    
-    total_rows = len(metrics) * n_terr + n_terr + 2  # metrics + territory headers + padding
-    fig_h = header_h + (total_rows * row_h) + 2.5
-    fig_w = label_w + (len(comparisons) * col_w) + 0.6
+    period_labels = {"30d": "First 30 Days", "90d": "First 90 Days", "12m": "First 12 Months"}
+    period_colors = {"30d": C["period_30"], "90d": C["period_90"], "12m": C["period_12m"]}
+
+    # Calculate total rows
+    total_rows = 0
+    for period_key, _ in available_periods:
+        total_rows += 1  # period header
+        total_rows += len(metrics) * len(territories) + len(territories)  # metrics + territory headers
+
+    fig_h = header_h + (total_rows * row_h) + 2.0
+    fig_w = label_w + (n_cols * col_w) + 0.6
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     fig.patch.set_facecolor(C["bg"])
@@ -167,104 +277,115 @@ def generate_book_launch_card(title, edition_id, author, pub_date, genre, subgen
     )
     ax.add_patch(header)
 
-    # Title
     display_title = title if len(title) < 45 else title[:42] + "..."
     ax.text(0.5, fig_h - 0.5, display_title,
             fontsize=18, fontweight="bold", color="white", fontfamily="sans-serif")
 
-    # Author + pub date + genre
+    pub_date_obj = pub_date if isinstance(pub_date, date) else pd.to_datetime(pub_date).date()
+    days_since = (date.today() - pub_date_obj).days
     ax.text(0.5, fig_h - 0.9,
-            f"by {author}  •  Published {pub_date.strftime('%d %b %Y')}",
+            f"by {author}  •  Published {pub_date_obj.strftime('%d %b %Y')}  •  {days_since} days ago",
             fontsize=10, color="#AAAAAA", fontfamily="sans-serif")
 
     genre_display = subgenre if subgenre and str(subgenre) != "nan" else genre
     ax.text(0.5, fig_h - 1.25,
-            f"Genre: {genre_display}  •  Edition {edition_id}  •  First Month Performance",
+            f"Genre: {genre_display}  •  Edition {edition_id}",
             fontsize=9, color="#888888", fontfamily="sans-serif")
 
-    # Comparison column headers
+    # ── Column headers ──
     y_start = fig_h - header_h - 0.2
-    comp_colors = [C["this_book"], C["all_books"], C["author"], C["cohort"], C["genre"]]
-    comp_labels = ["This Book", f"All Books\nAvg ({all_avg.get('books', 0)})", 
-                   f"Author Avg\n({author_avg.get('books', 0)} books)",
-                   f"Pub Month\nCohort ({cohort_avg.get('books', 0)})",
-                   f"Genre Avg\n({genre_avg.get('books', 0)})"]
 
-    for j, (lbl, clr) in enumerate(zip(comp_labels, comp_colors)):
+    for j, (lbl, clr) in enumerate(zip(comp_labels_base, comp_colors)):
         x = label_w + (j * col_w) + (col_w / 2)
+        # Get book count from first available period
+        first_period = available_periods[0][1]
+        count = ""
+        if j == 1:
+            count = f"\n({first_period['all'].get('books', 0)})"
+        elif j == 2:
+            count = f"\n({first_period['author'].get('books', 0)} books)"
+        elif j == 3:
+            count = f"\n({first_period['cohort'].get('books', 0)})"
+        elif j == 4:
+            count = f"\n({first_period['genre'].get('books', 0)})"
+
         pill = mpatches.FancyBboxPatch(
             (x - col_w / 2 + 0.05, y_start - 0.45), col_w - 0.1, 0.5,
             boxstyle="round,pad=0.04",
             facecolor=clr + "22", edgecolor=clr, linewidth=1,
         )
         ax.add_patch(pill)
-        ax.text(x, y_start - 0.2, lbl,
+        ax.text(x, y_start - 0.2, f"{lbl}{count}",
                 fontsize=7, fontweight="bold", color=clr,
                 ha="center", va="center", fontfamily="sans-serif")
 
-    # ── Data rows per territory ──
+    # ── Period sections ──
     y = y_start - 0.7
-
     metric_keys = ["units", "revenue", "kenp"]
-    metric_labels = ["Units Sold", "Revenue (£)", "KENP Pages"]
+    metric_labels = ["Units Sold", "Revenue", "KENP"]
     metric_fmts = [fn, fc, fn]
 
-    for terr in territories:
-        # Territory header
-        terr_color = C["this_book"] if terr == "GB" else C["accent2"]
-        terr_rect = mpatches.FancyBboxPatch(
+    for period_key, pdata in available_periods:
+        # Period header
+        p_color = period_colors[period_key]
+        p_label = period_labels[period_key]
+
+        period_rect = mpatches.FancyBboxPatch(
             (0.2, y - 0.12), fig_w - 0.4, 0.35,
             boxstyle="round,pad=0.04",
-            facecolor=terr_color, edgecolor="none",
+            facecolor=p_color + "15", edgecolor=p_color, linewidth=1.5,
         )
-        ax.add_patch(terr_rect)
-        ax.text(0.5, y + 0.05, terr,
-                fontsize=10, fontweight="bold", color="white",
-                fontfamily="sans-serif")
+        ax.add_patch(period_rect)
+        ax.text(fig_w / 2, y + 0.05, p_label,
+                fontsize=10, fontweight="bold", color=p_color,
+                ha="center", va="center", fontfamily="sans-serif")
         y -= row_h
 
-        book_m = book_data.get(terr, {"units": 0, "revenue": 0, "kenp": 0})
-        all_m = all_avg.get(terr, {"units": 0, "revenue": 0, "kenp": 0})
-        auth_m = author_avg.get(terr, {"units": 0, "revenue": 0, "kenp": 0})
-        coh_m = cohort_avg.get(terr, {"units": 0, "revenue": 0, "kenp": 0})
-        gen_m = genre_avg.get(terr, {"units": 0, "revenue": 0, "kenp": 0})
+        for terr in territories:
+            # Territory sub-header
+            terr_color = C["this_book"] if terr == "GB" else C["accent2"]
+            ax.text(0.45, y + 0.05, terr,
+                    fontsize=9, fontweight="bold", color=terr_color,
+                    va="center", fontfamily="sans-serif")
+            y -= row_h * 0.6
 
-        for i, (key, label, fmt) in enumerate(zip(metric_keys, metric_labels, metric_fmts)):
-            row_color = C["row_alt"] if i % 2 == 0 else C["card"]
-            rect = mpatches.Rectangle(
-                (0.2, y - 0.15), fig_w - 0.4, row_h,
-                facecolor=row_color, edgecolor="none",
-            )
-            ax.add_patch(rect)
+            book_m = pdata["book"].get(terr, {"units": 0, "revenue": 0, "kenp": 0})
+            all_m = pdata["all"].get(terr, {"units": 0, "revenue": 0, "kenp": 0})
+            auth_m = pdata["author"].get(terr, {"units": 0, "revenue": 0, "kenp": 0})
+            coh_m = pdata["cohort"].get(terr, {"units": 0, "revenue": 0, "kenp": 0})
+            gen_m = pdata["genre"].get(terr, {"units": 0, "revenue": 0, "kenp": 0})
 
-            # Metric label
-            ax.text(0.45, y + 0.05, label,
-                    fontsize=9, color=C["text_mid"], va="center", fontfamily="sans-serif")
+            for i, (key, label, fmt) in enumerate(zip(metric_keys, metric_labels, metric_fmts)):
+                row_color = C["row_alt"] if i % 2 == 0 else C["card"]
+                rect = mpatches.Rectangle(
+                    (0.2, y - 0.15), fig_w - 0.4, row_h,
+                    facecolor=row_color, edgecolor="none",
+                )
+                ax.add_patch(rect)
 
-            # Values for each comparison
-            vals = [book_m.get(key, 0), all_m.get(key, 0), auth_m.get(key, 0),
-                    coh_m.get(key, 0), gen_m.get(key, 0)]
+                ax.text(0.65, y + 0.05, label,
+                        fontsize=8, color=C["text_mid"], va="center", fontfamily="sans-serif")
 
-            for j, (val, clr) in enumerate(zip(vals, comp_colors)):
-                x = label_w + (j * col_w) + (col_w / 2)
+                vals = [book_m.get(key, 0), all_m.get(key, 0), auth_m.get(key, 0),
+                        coh_m.get(key, 0), gen_m.get(key, 0)]
 
-                # Main value
-                ax.text(x, y + 0.1, fmt(val),
-                        fontsize=10, fontweight="bold", color=C["text_dark"],
-                        ha="center", va="center", fontfamily="sans-serif")
-
-                # Percentage comparison (skip for "This Book" column)
-                if j > 0 and vals[0] > 0:
-                    pct_text, pct_color = pct_vs(vals[0], val)
-                    ax.text(x, y - 0.08, pct_text,
-                            fontsize=7, color=pct_color,
+                for j, (val, clr) in enumerate(zip(vals, comp_colors)):
+                    x = label_w + (j * col_w) + (col_w / 2)
+                    ax.text(x, y + 0.1, fmt(val),
+                            fontsize=9, fontweight="bold", color=C["text_dark"],
                             ha="center", va="center", fontfamily="sans-serif")
 
-            y -= row_h
+                    if j > 0 and vals[0] > 0:
+                        pct_text, pct_color = pct_vs(vals[0], val)
+                        ax.text(x, y - 0.06, pct_text,
+                                fontsize=7, color=pct_color,
+                                ha="center", va="center", fontfamily="sans-serif")
 
-        y -= 0.15  # Gap between territories
+                y -= row_h
 
-    # ── Bottom accent line ──
+        y -= 0.1  # Gap between periods
+
+    # ── Bottom line ──
     ax.plot([0.3, fig_w - 0.3], [0.15, 0.15], color=C["accent"], linewidth=2)
 
     plt.tight_layout(pad=0.3)
@@ -279,39 +400,102 @@ def generate_book_launch_card(title, edition_id, author, pub_date, genre, subgen
     return filename
 
 
-def generate_all(pub_month=None):
-    """
-    Generate launch comparisons.
-    pub_month: e.g. '2026-01' to compare all books published that month.
-    If None, uses the latest month with published books.
-    """
-    print("Fetching launch data...")
-    df = fetch_launch_data()
+def build_comparisons(df, eid, author, genre, pub_month, territories):
+    """Build comparison dict for one time period."""
+    book_df = df[df["edition_id"] == eid]
+    book = {}
+    for terr in territories:
+        t = book_df[book_df["territory"] == terr]
+        book[terr] = aggregate(t)
 
-    if df.empty:
+    all_avg = {"books": df["edition_id"].nunique()}
+    author_df = df[(df["author"] == author) & (df["edition_id"] != eid)]
+    author_avg = {"books": author_df["edition_id"].nunique()}
+    cohort_df = df[(df["pub_month"] == pub_month) & (df["edition_id"] != eid)]
+    cohort_avg = {"books": cohort_df["edition_id"].nunique()}
+    genre_df = df[(df["genre"] == genre) & (df["edition_id"] != eid)]
+    genre_avg = {"books": genre_df["edition_id"].nunique()}
+
+    for terr in ["GB", "US"]:
+        all_avg[terr] = avg_per_book(df[df["territory"] == terr])
+        author_avg[terr] = avg_per_book(author_df[author_df["territory"] == terr])
+        cohort_avg[terr] = avg_per_book(cohort_df[cohort_df["territory"] == terr])
+        genre_avg[terr] = avg_per_book(genre_df[genre_df["territory"] == terr])
+
+    return {
+        "book": book,
+        "all": all_avg,
+        "author": author_avg,
+        "cohort": cohort_avg,
+        "genre": genre_avg,
+    }
+
+
+def merge_kenp(daily_df, kenp_df):
+    """Merge KENP data into daily sales dataframe."""
+    if kenp_df.empty:
+        daily_df["kenp"] = 0
+        return daily_df
+
+    kenp_grouped = kenp_df.groupby(["edition_id", "territory"]).agg({
+        "kenp": "sum"
+    }).reset_index()
+
+    merged = daily_df.merge(kenp_grouped, on=["edition_id", "territory"], how="left")
+    merged["kenp"] = merged["kenp"].fillna(0)
+    return merged
+
+
+def generate_all(pub_month=None, edition_id=None):
+    """Generate launch comparisons for books published in a given month."""
+    print("Fetching launch data...")
+
+    # Fetch 30-day data
+    print("  Fetching 30-day daily sales...")
+    daily_30 = fetch_daily_launch_data(30)
+    kenp_30 = fetch_daily_kenp_data(30)
+    daily_30 = merge_kenp(daily_30, kenp_30)
+
+    # Fetch 90-day data
+    print("  Fetching 90-day daily sales...")
+    daily_90 = fetch_daily_launch_data(90)
+    kenp_90 = fetch_daily_kenp_data(90)
+    daily_90 = merge_kenp(daily_90, kenp_90)
+
+    # Fetch 12-month data
+    print("  Fetching 12-month monthly sales...")
+    monthly_12 = fetch_monthly_launch_data()
+
+    if daily_30.empty:
         print("No data found.")
         return []
 
-    df["pub_date"] = pd.to_datetime(df["pub_date"]).dt.date
+# Target books: published in last 30 days
+    daily_30["pub_date"] = pd.to_datetime(daily_30["pub_date"]).dt.date
 
-    # Determine target month
-    if pub_month:
-        target_month = pub_month
+    if edition_id:
+        print(f"Generating report for edition {edition_id}\n")
+
+        target_books = daily_30[daily_30["edition_id"] == edition_id][
+            ["edition_id", "title", "author", "pub_date", "genre", "genre_subgenre", "pub_month"]
+        ].drop_duplicates(subset=["edition_id"])
+
     else:
-        target_month = df["pub_month"].max()
+        today = date.today()
+        cutoff = today - timedelta(days=30)
 
-    print(f"Comparing books published in: {target_month}\n")
+        print(f"Books published in last 30 days (since {cutoff}):\n")
 
-    # Target books (published in target month)
-    target_books = df[df["pub_month"] == target_month][
-        ["edition_id", "title", "author", "pub_date", "genre", "genre_subgenre"]
-    ].drop_duplicates(subset=["edition_id"])
+        target_books = daily_30[daily_30["pub_date"] >= cutoff][
+            ["edition_id", "title", "author", "pub_date", "genre", "genre_subgenre", "pub_month"]
+        ].drop_duplicates(subset=["edition_id"])
 
     if target_books.empty:
         print(f"No books published in {target_month}")
         return []
 
     print(f"Found {len(target_books)} books\n")
+    today = date.today()
 
     filenames = []
     for _, row in target_books.iterrows():
@@ -321,49 +505,31 @@ def generate_all(pub_month=None):
         pub_date = row["pub_date"]
         genre = row["genre"]
         subgenre = row["genre_subgenre"]
+        pub_m = row["pub_month"]
 
-        # This book's data per territory
-        book_df = df[df["edition_id"] == eid]
-        book_data = {}
-        for terr in book_df["territory"].unique():
-            t = book_df[book_df["territory"] == terr]
-            book_data[terr] = aggregate(t)
+        days_since = (today - pub_date).days
 
-        # All books average per territory
-        all_avg = {}
-        for terr in ["GB", "US"]:
-            t = df[df["territory"] == terr]
-            all_avg[terr] = avg_per_book(t)
-        all_avg["books"] = df["edition_id"].nunique()
+        periods = {}
 
-        # Same author average per territory
-        author_df = df[(df["author"] == author) & (df["edition_id"] != eid)]
-        author_avg = {}
-        for terr in ["GB", "US"]:
-            t = author_df[author_df["territory"] == terr]
-            author_avg[terr] = avg_per_book(t)
-        author_avg["books"] = author_df["edition_id"].nunique()
+        # 30-day (always show — even partial)
+        if not daily_30[daily_30["edition_id"] == eid].empty:
+            label = "30d"
+            periods[label] = build_comparisons(daily_30, eid, author, genre, pub_m, ["GB", "US"])
 
-        # Same pub month cohort per territory
-        cohort_df = df[(df["pub_month"] == target_month) & (df["edition_id"] != eid)]
-        cohort_avg = {}
-        for terr in ["GB", "US"]:
-            t = cohort_df[cohort_df["territory"] == terr]
-            cohort_avg[terr] = avg_per_book(t)
-        cohort_avg["books"] = cohort_df["edition_id"].nunique()
+        # 90-day (only if 90+ days old)
+        if days_since >= 90 and not daily_90[daily_90["edition_id"] == eid].empty:
+            periods["90d"] = build_comparisons(daily_90, eid, author, genre, pub_m, ["GB", "US"])
 
-        # Same genre average per territory
-        genre_df = df[(df["genre"] == genre) & (df["edition_id"] != eid)]
-        genre_avg = {}
-        for terr in ["GB", "US"]:
-            t = genre_df[genre_df["territory"] == terr]
-            genre_avg[terr] = avg_per_book(t)
-        genre_avg["books"] = genre_df["edition_id"].nunique()
+        # 12-month (only if 365+ days old)
+        if days_since >= 365 and not monthly_12.empty and not monthly_12[monthly_12["edition_id"] == eid].empty:
+            periods["12m"] = build_comparisons(monthly_12, eid, author, genre, pub_m, ["GB", "US"])
 
-        print(f"📖 {title} by {author}")
+        if not periods:
+            continue
+
+        print(f"📖 {title} by {author} ({days_since}d old, periods: {list(periods.keys())})")
         fname = generate_book_launch_card(
-            title, eid, author, pub_date, genre, subgenre,
-            book_data, all_avg, author_avg, cohort_avg, genre_avg
+            title, eid, author, pub_date, genre, subgenre, periods
         )
         if fname:
             filenames.append(fname)
@@ -374,5 +540,14 @@ def generate_all(pub_month=None):
 
 if __name__ == "__main__":
     import sys
-    pub_month = sys.argv[1] if len(sys.argv) > 1 else None
-    generate_all(pub_month)
+
+    edition_id = None
+    pub_month = None
+
+    if len(sys.argv) > 1:
+        try:
+            edition_id = int(sys.argv[1])
+        except:
+            pub_month = sys.argv[1]
+
+    generate_all(pub_month=pub_month, edition_id=edition_id)
