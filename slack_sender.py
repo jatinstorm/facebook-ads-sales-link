@@ -194,11 +194,23 @@ def send_reports(report_type, local_filepaths):
         messages = {
             "scorecard": f"📊 Daily Facebook Ads Analysis: *{book_title}*<@U053NJZ5DT7> <@U0A861XPXK3>",
             "genre": f"📈 Genre Analysis: *{book_title}* <@U053NJZ5DT7> <@U0A861XPXK3>",
-            "weekly": f"📋 Weekly Report: *{book_title}* <@U053NJZ5DT7> <@U0A861XPXK3>",
+            "weekly": f"📋 Weekly Report: *{book_title}* <@U042HE7HJJW> <@U0A861XPXK3>",
         }
 
-        message = messages.get(report_type, f"📄 Report: *{book_title}*")
 
+        if report_type == "launch":
+            milestone_labels = {"30d": "30-Day", "90d": "90-Day", "12m": "12-Month"}
+            milestones = []
+            for f in files:
+                base = os.path.basename(f).replace(".png", "")
+                suffix = base.rsplit("_", 1)[-1]
+                if suffix in milestone_labels:
+                    milestones.append(milestone_labels[suffix])
+            milestone_str = " / ".join(milestones) if milestones else "Launch"
+            message = f"🚀 {milestone_str} Milestone Report: *{book_title}* <@U053NJZ5DT7> <@U04QUDS0EKS>"
+        else:
+            message = messages.get(report_type, f"📄 Report: *{book_title}*")
+    
         first = True
 
         for filepath in files:

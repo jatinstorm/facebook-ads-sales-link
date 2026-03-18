@@ -9,6 +9,7 @@ app = Flask(__name__)
 # Cloud Run uses /tmp for writable storage
 os.environ["GENRE_OUTPUT_DIR"] = "/tmp/genre_reports"
 os.environ["WEEKLY_OUTPUT_DIR"] = "/tmp/weekly_reports"
+os.environ["LAUNCH_OUTPUT_DIR"] = "/tmp/launch_reports"
 
 
 @app.route("/", methods=["GET"])
@@ -113,6 +114,50 @@ def weekly():
     except Exception as e:
         print(f"Weekly reports failed:\n{traceback.format_exc()}")
         return jsonify({"status": "error", "message": str(e)}), 500
+    
+
+
+@app.route("/launch", methods=["POST"])
+def launch():
+    """Generate launch comparison scorecards and send to Slack.
+    Books that just hit 30d, 90d, or 12m milestones get a scorecard.
+    Optionally pass edition_id and/or milestone in JSON body."""
+    try:
+        from launch_comparison import generate_all
+        from slack_sender import send_reports
+ 
+        data = request.get_json(silent=True) or {}
+        edition_id = data.get("edition_id")
+        milestone = data.get("milestone")
+ 
+        if edition_id is not None:
+            edition_id = int(edition_id)
+ 
+        print(f"Starting launch scorecards (edition={edition_id}, milestone={milestone})...")
+ 
+        files = generate_all(edition_id=edition_id, milestone=milestone)
+        print(f"Generated {len(files)} launch scorecards")
+ 
+        sent = 0
+        if files:
+            print("Sending launch scorecards to Slack...")
+            sent = send_reports("launch", files)
+            print(f"Slack upload complete. Sent {sent} scorecards")
+ 
+        return jsonify({
+            "status": "success",
+            "generated": len(files),
+            "sent": sent,
+        }), 200
+ 
+    except Exception as e:
+        print(f"Launch scorecards failed:\n{traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+
+
+
+
 
 
 

@@ -397,6 +397,14 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
             y_data = run_totals.get(terr, {})
             b_data = benchmarks.get(terr, {})
 
+            # Skip benchmarks for territories with no active spend
+            if not y_data or y_data.get("spend", 0) == 0:
+                y_x = label_w + (i * terr_w) + (terr_w / 4)
+                ax.text(y_x, y + 0.04, "—",
+                        fontsize=10, color=C["text_light"],
+                        ha="center", va="center", fontfamily="sans-serif")
+                continue
+
             run_days = y_data.get("run_days", 1)
 
             book_val = y_data.get(book_key, 0)
@@ -437,7 +445,9 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
 
     # Generate recommendation
     recs = []
-    if len(territories) == 2:
+
+    active_territories = [t for t in territories if yesterday.get(t, {}).get("spend", 0) > 0]
+    if len(active_territories) == 2:
         gb_y = yesterday.get("GB", {})
         us_y = yesterday.get("US", {})
         gb_profit = gb_y.get("profit", 0)
@@ -464,8 +474,8 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
             if y_data.get("cpc", 0) > b_data.get("avg_cpc", 0) * 1.3:
                 recs.append(f"{terr} CPC is 30%+ above genre average → Review targeting")
 
-    elif len(territories) == 1:
-        terr = territories[0]
+    elif len(active_territories) == 1:
+        terr = active_territories[0]
         y_data = yesterday.get(terr, {})
         if y_data.get("profit", 0) > 0:
             recs.append(f"Profitable in {terr}! Consider expanding to {'US' if terr == 'GB' else 'GB'}")
@@ -524,8 +534,11 @@ def generate_all(date=None):
             yesterday[terr] = calc(t_data)
 
         # Run totals per territory
+
         run_totals = {}
         for terr in run_df[run_df["Edition_ID"] == eid]["Territory"].unique():
+            if terr not in yesterday:
+                continue
             t_data = run_df[(run_df["Edition_ID"] == eid) & (run_df["Territory"] == terr)]
             m = calc(t_data)
             days = t_data["run_days"].iloc[0] if not t_data.empty else 1

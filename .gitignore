@@ -6,5 +6,4 @@ service_account.json
 genre_reports/
 weekly_reports/
 launch_reports/
-launch_comparison.py
 recommendations.py
