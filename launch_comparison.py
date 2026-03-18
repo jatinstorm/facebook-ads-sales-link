@@ -846,10 +846,8 @@ def generate_all(edition_id=None, milestone=None):
             df["pub_date"] = pd.to_datetime(df["pub_date"]).dt.date
 
             target_days = PERIOD_CONFIG[mk]["days"]
-            lo = today - timedelta(days=target_days + 2)
-            hi = today - timedelta(days=target_days - 2)
-
-            hits = df[(df["pub_date"] >= lo) & (df["pub_date"] <= hi)][
+            exact_date = today - timedelta(days=target_days)
+            hits = df[df["pub_date"] == exact_date][
                 ["edition_id", "title", "author", "pub_date", "genre",
                  "genre_subgenre", "pub_month"]
             ].drop_duplicates(subset=["edition_id"])
