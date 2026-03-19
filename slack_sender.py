@@ -111,7 +111,8 @@ def get_channel_mapping():
     SELECT DISTINCT
         ID AS Edition_ID,
         Title,
-        Slack_Channel
+        Slack_Channel,
+        `*Slack ID - Current Editor` AS Editor_Slack_ID
     FROM `storm-pub-amazon-sales.airtable.awe_editions`
     WHERE Slack_Channel IS NOT NULL AND Slack_Channel != ''
     """
@@ -122,6 +123,7 @@ def get_channel_mapping():
         mapping[row["Edition_ID"]] = {
             "channel": row["Slack_Channel"],
             "title": row["Title"],
+            "editor_slack_id": row.get("Editor_Slack_ID") or "",
         }
     return mapping
 
@@ -207,7 +209,8 @@ def send_reports(report_type, local_filepaths):
                 if suffix in milestone_labels:
                     milestones.append(milestone_labels[suffix])
             milestone_str = " / ".join(milestones) if milestones else "Launch"
-            message = f"🚀 {milestone_str} Milestone Report: *{book_title}* <@U042HE7HJJW> <@U04QUDS0EKS>"
+            editor_mention = f" {info['editor_slack_id']}" if info.get("editor_slack_id") else ""
+            message = f"🚀 {milestone_str} Milestone Report: *{book_title}*{editor_mention}<@U042HE7HJJW> <@U04QUDS0EKS>"
         else:
             message = messages.get(report_type, f"📄 Report: *{book_title}*")
     

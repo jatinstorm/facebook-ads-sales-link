@@ -379,7 +379,7 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
         ("Daily KENP Revenue", "kenp_revenue", "avg_kenp_revenue", fc, False),
         ("Daily Revenue", "revenue", "avg_revenue", fc, False),
         ("Daily Spend", "spend", "avg_spend", fc, True),
-        ("ROI", "roi", "avg_roi", fp0, False)
+        ("ROI", "roi", "avg_roi", fp0, True)
     ]
 
     for idx, (label, book_key, bench_key, fmt, lower_better) in enumerate(bench_rows):
