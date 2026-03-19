@@ -194,7 +194,7 @@ def send_reports(report_type, local_filepaths):
         messages = {
             "scorecard": f"📊 Daily Facebook Ads Analysis: *{book_title}*<@U053NJZ5DT7> <@U0A861XPXK3>",
             "genre": f"📈 Genre Analysis: *{book_title}* <@U053NJZ5DT7> <@U0A861XPXK3>",
-            "weekly": f"📋 Weekly Report: *{book_title}* <@U042HE7HJJW> U042HE7HJJW",
+            "weekly": f"📋 Weekly Report: *{book_title}* <@U053NJZ5DT7>  <@U0A861XPXK3>",
         }
 
 
@@ -207,7 +207,7 @@ def send_reports(report_type, local_filepaths):
                 if suffix in milestone_labels:
                     milestones.append(milestone_labels[suffix])
             milestone_str = " / ".join(milestones) if milestones else "Launch"
-            message = f"🚀 {milestone_str} Milestone Report: *{book_title}* <@U053NJZ5DT7> <@U04QUDS0EKS>"
+            message = f"🚀 {milestone_str} Milestone Report: *{book_title}* <@U042HE7HJJW> <@U04QUDS0EKS>"
         else:
             message = messages.get(report_type, f"📄 Report: *{book_title}*")
     
