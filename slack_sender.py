@@ -112,7 +112,7 @@ def get_channel_mapping():
         ID AS Edition_ID,
         Title,
         Slack_Channel,
-        `*Slack ID - Current Editor` AS Editor_Slack_ID
+        `Slack_ID_Current_Editor` AS Editor_Slack_ID
     FROM `storm-pub-amazon-sales.airtable.awe_editions`
     WHERE Slack_Channel IS NOT NULL AND Slack_Channel != ''
     """
