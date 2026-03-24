@@ -216,6 +216,19 @@ def run_pipeline():
             kenp_revenue_gbp=('revenue_gbp', 'sum')
         ).reset_index()
 
+        meta_lookup = {}
+        for src in [ebook_life, pb_life, kenp_life]:
+            cols = ['Series', 'Genre', 'Genre_Subgenre', 'Cover_Author']
+            available = [c for c in cols if c in src.columns]
+            if len(available) == len(cols):
+                for _, row in src[available].drop_duplicates('Series').iterrows():
+                    if row['Series'] not in meta_lookup:
+                        meta_lookup[row['Series']] = {
+                            'Genre': str(row.get('Genre', '')),
+                            'Genre_Subgenre': str(row.get('Genre_Subgenre', '')),
+                            'Cover_Author': str(row.get('Cover_Author', '')),
+                        }
+
         # Merge all three for the combined view
         book_totals = ebook_life.merge(pb_life, on=grp, how='outer') \
                                 .merge(kenp_life, on=grp, how='outer')
@@ -236,7 +249,7 @@ def run_pipeline():
 
         # ── Channel-specific readthrough calculations ──
 
-        def calc_channel_readthrough(df, unit_col, revenue_col, channel_name):
+        def calc_channel_readthrough(df, unit_col, revenue_col, channel_name, meta_lookup):
             """
             Calculate readthrough curve for a single channel.
 
@@ -313,9 +326,9 @@ def run_pipeline():
 
                 summary_rows.append({
                     'series': series_name,
-                    'genre': str(b1.get('Genre', '')),
-                    'genre_subgenre': str(b1.get('Genre_Subgenre', '')),
-                    'author': str(b1.get('Cover_Author', '')),
+                    'genre': meta_lookup.get(series_name, {}).get('Genre', ''),
+                    'genre_subgenre': meta_lookup.get(series_name, {}).get('Genre_Subgenre', ''),
+                    'author': meta_lookup.get(series_name, {}).get('Cover_Author', ''),
                     'total_books': int(g['book_number'].nunique()),
                     'book1_base': round(float(b1_base), 2),
                     'book1_revenue_gbp': round(float(b1_rev), 2),
@@ -381,17 +394,17 @@ def run_pipeline():
         # ── Run each channel ──
         print("     ALC Ebook channel...")
         alc_result = calc_channel_readthrough(
-            ebook_life, 'ebook_units', 'ebook_revenue_gbp', 'alc_ebook'
+            ebook_life, 'ebook_units', 'ebook_revenue_gbp', 'alc_ebook', meta_lookup
         )
 
         print("     KENP channel...")
         kenp_result = calc_channel_readthrough(
-            kenp_life, 'kenp_pages', 'kenp_revenue_gbp', 'kenp'
+            kenp_life, 'kenp_pages', 'kenp_revenue_gbp', 'kenp', meta_lookup
         )
 
         print("     POD channel...")
         pod_result = calc_channel_readthrough(
-            pb_life, 'pod_units', 'pod_revenue_gbp', 'pod'
+            pb_life, 'pod_units', 'pod_revenue_gbp', 'pod', meta_lookup
         )
 
         # ── Overall summary (all channels combined, revenue-based ROI) ──
