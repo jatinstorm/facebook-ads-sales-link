@@ -171,6 +171,22 @@ def series_dashboard():
 
 
 
+@app.route("/dashboard", methods=["GET"])
+def dashboard():
+    """Serve the series projection dashboard."""
+    try:
+        from google.cloud import storage as gcs
+        gcs_client = gcs.Client()
+        bucket = gcs_client.bucket('storm-series-dashboard')
+        blob = bucket.blob('index.html')
+        html = blob.download_as_text()
+        return html, 200, {'Content-Type': 'text/html'}
+    except Exception as e:
+        return f"Dashboard not available: {e}", 500
+
+
+
+
 
 
 
