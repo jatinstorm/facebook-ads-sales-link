@@ -153,7 +153,20 @@ def launch():
     except Exception as e:
         print(f"Launch scorecards failed:\n{traceback.format_exc()}")
         return jsonify({"status": "error", "message": str(e)}), 500
-    
+        
+@app.route("/series-dashboard", methods=["POST"])
+def series_dashboard():
+    """Regenerate series projection dashboard and upload to GCS."""
+    try:
+        from series_projection import run_pipeline
+        
+        print("Starting series projection pipeline...")
+        run_pipeline()
+        
+        return jsonify({"status": "success", "url": "https://storage.googleapis.com/storm-series-dashboard/index.html"}), 200
+    except Exception as e:
+        print(f"Series dashboard failed:\n{traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 

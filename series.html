@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Series Projection Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --t1: #1a1a1a; --t2: #6b7280; --t3: #9ca3af;
+    --bg0: #f7f7f8; --bg1: #ffffff; --bg2: #f3f4f6; --b1: #e5e7eb;
+    --accent-alc: #6366f1; --accent-kenp: #10b981; --accent-pod: #f59e0b;
+    --accent-alc-bg: #eef2ff; --accent-kenp-bg: #ecfdf5; --accent-pod-bg: #fffbeb;
+    --radius: 10px; --radius-lg: 14px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --t1: #f0f0f0; --t2: #9ca3af; --t3: #6b7280;
+      --bg0: #111113; --bg1: #1a1a1e; --bg2: #242428; --b1: #333338;
+      --accent-alc-bg: #1e1b4b; --accent-kenp-bg: #022c22; --accent-pod-bg: #451a03;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+      --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
+    }
+  }
+  body {
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg0); color: var(--t1); padding: 24px 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "DM Mono", monospace; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+  h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  h3 { font-size: 14px; font-weight: 500; color: var(--t2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .container { max-width: 1060px; margin: 0 auto; }
+  .subtitle { color: var(--t2); font-size: 13px; margin-top: 4px; }
+
+  /* ── Metric cards ── */
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0 28px; }
+  .metric-card {
+    background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius);
+    padding: 16px 18px; box-shadow: var(--shadow-sm);
+  }
+  .metric-card.highlight { border-left: 3px solid var(--accent-alc); }
+  .metric-label { font-size: 11px; color: var(--t3); text-transform: uppercase; letter-spacing: 0.05em; display: block; font-weight: 500; }
+  .metric-val { font-size: 24px; font-weight: 600; display: block; margin-top: 4px; letter-spacing: -0.02em; }
+  .metric-sub { font-size: 11px; color: var(--t3); display: block; margin-top: 2px; }
+
+  /* ── Filters ── */
+  .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .filter-group { display: inline-flex; border: 1px solid var(--b1); border-radius: 8px; overflow: hidden; background: var(--bg1); box-shadow: var(--shadow-sm); }
+  .filter-group-label { font-size: 11px; color: var(--t3); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; padding: 7px 10px; border-right: 1px solid var(--b1); display: flex; align-items: center; background: var(--bg2); }
+  .ftab {
+    font-size: 12px; padding: 7px 14px; border: none; background: transparent;
+    color: var(--t2); cursor: pointer; font-weight: 500; border-right: 1px solid var(--b1);
+    font-family: inherit; transition: all 0.15s;
+  }
+  .ftab:last-child { border-right: none; }
+  .ftab:hover { background: var(--bg2); }
+  .ftab.active-territory { background: var(--t1); color: var(--bg1); }
+  .ftab.active-alc { background: var(--accent-alc); color: #fff; }
+  .ftab.active-kenp { background: var(--accent-kenp); color: #fff; }
+  .ftab.active-pod { background: var(--accent-pod); color: #fff; }
+  .ftab.active-overall { background: var(--t1); color: var(--bg1); }
+
+  select { font-size: 12px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--b1); background: var(--bg1); color: var(--t1); cursor: pointer; font-family: inherit; box-shadow: var(--shadow-sm); }
+  .count { font-size: 12px; color: var(--t3); margin-left: auto; }
+
+  /* ── Table ── */
+  .table-wrap { background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 12px; font-size: 11px; color: var(--t3); font-weight: 500; border-bottom: 1px solid var(--b1); text-transform: uppercase; letter-spacing: 0.04em; background: var(--bg2); }
+  th.r { text-align: right; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--t1); }
+  th .sort-arrow { font-size: 10px; margin-left: 2px; opacity: 0.4; }
+  th.sorted .sort-arrow { opacity: 1; }
+  td { padding: 11px 12px; vertical-align: middle; font-size: 13px; color: var(--t1); }
+  td.r { text-align: right; }
+  tr.row { cursor: pointer; border-bottom: 1px solid var(--b1); transition: background 0.1s; }
+  tr.row:last-child { border-bottom: none; }
+  tr.row:hover { background: var(--bg2); }
+  .series-name { font-weight: 500; font-size: 13px; }
+  .series-meta { font-size: 11px; color: var(--t3); }
+
+  /* ── Channel badges ── */
+  .ch-badge {
+    display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px;
+    border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .ch-alc { background: var(--accent-alc-bg); color: var(--accent-alc); }
+  .ch-kenp { background: var(--accent-kenp-bg); color: var(--accent-kenp); }
+  .ch-pod { background: var(--accent-pod-bg); color: var(--accent-pod); }
+
+  /* ── Detail page ── */
+  .back-btn {
+    font-size: 13px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--b1);
+    background: var(--bg1); color: var(--t2); cursor: pointer; font-family: inherit;
+    font-weight: 500; box-shadow: var(--shadow-sm); transition: all 0.15s;
+  }
+  .back-btn:hover { background: var(--bg2); color: var(--t1); }
+  .detail-header { margin: 16px 0 24px; }
+  .detail-header p { color: var(--t2); font-size: 13px; margin-top: 4px; }
+  .section { margin-bottom: 28px; }
+  .hint { font-size: 12px; color: var(--t3); margin: -4px 0 10px; }
+
+  /* ── Charts ── */
+  .card {
+    background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius-lg);
+    padding: 20px; box-shadow: var(--shadow-sm); margin-bottom: 16px;
+  }
+  .card h3 { margin-bottom: 14px; }
+  .chart-scroll { overflow-x: auto; padding: 4px 0; }
+
+  /* ── Side-by-side channel grid ── */
+  .channel-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .channel-card {
+    background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius);
+    padding: 16px; box-shadow: var(--shadow-sm);
+  }
+  .channel-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+
+  /* ── Bar charts ── */
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .bar-label { font-size: 12px; color: var(--t2); min-width: 48px; text-align: right; }
+  .bar-track { flex: 1; height: 22px; background: var(--bg2); border-radius: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s cubic-bezier(0.16,1,0.3,1); min-width: 2px; }
+  .bar-val { font-size: 12px; font-weight: 500; color: var(--t1); min-width: 56px; text-align: right; }
+
+  /* ── Revenue mix ── */
+  .mix-bar { display: flex; gap: 3px; height: 32px; border-radius: 8px; overflow: hidden; }
+  .mix-seg { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; letter-spacing: 0.02em; }
+
+  .loading { text-align: center; padding: 60px 0; color: var(--t2); font-size: 14px; }
+
+  @media (max-width: 900px) { .channel-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) { .metric-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="container" id="app"><div class="loading">Loading data…</div></div>
+
+<script src="series_projection_data.js" onerror="console.log('No .js file found, will try fetch')"></script>
+
+<script>
+const app = document.getElementById("app");
+let ALL_DATA = null;
+let state = {
+  view: "overview",
+  selected: null,
+  sort: "roi_multiplier",
+  dir: "desc",
+  genre: "all",
+  minBooks: 2,
+  territory: "Total",
+  channel: "overall"   // "overall" | "alc_ebook" | "kenp" | "pod"
+};
+
+// ── Helpers ──
+function fmtGBP(n) {
+  if (n >= 1e6) return "\u00a3" + (n/1e6).toFixed(1) + "M";
+  if (n >= 1e3) return "\u00a3" + (n/1e3).toFixed(1) + "K";
+  return "\u00a3" + Math.round(n);
+}
+function pct(n) { return (isFinite(n) ? Math.round(n * 100) : 0) + "%"; }
+function fmtN(n) { return n.toLocaleString(undefined, {maximumFractionDigits: 2}); }
+
+function getTerritory() {
+  if (!ALL_DATA) return null;
+  return ALL_DATA[state.territory] || ALL_DATA["Total"];
+}
+
+function getChannelData(terr) {
+  if (state.channel === "overall") return null;
+  return terr?.[state.channel] || null;
+}
+
+function channelColor(ch) {
+  if (ch === "alc_ebook") return "var(--accent-alc)";
+  if (ch === "kenp") return "var(--accent-kenp)";
+  if (ch === "pod") return "var(--accent-pod)";
+  return "var(--t1)";
+}
+function channelLabel(ch) {
+  if (ch === "alc_ebook") return "ALC Ebook";
+  if (ch === "kenp") return "KENP";
+  if (ch === "pod") return "POD";
+  return "Overall";
+}
+function channelBaseLabel(ch) {
+  if (ch === "alc_ebook") return "per ALC sale";
+  if (ch === "kenp") return "per B1 KENP page";
+  if (ch === "pod") return "per POD sale";
+  return "";
+}
+
+function sparkSVG(values, color="#6366f1", w=80, h=28) {
+  if (!values?.length || values.length < 2) return "";
+  const max = Math.max(...values), min = Math.min(...values), range = max-min||1;
+  const pts = values.map((v,i) => `${(i/(values.length-1))*w},${h-((v-min)/range)*(h-4)-2}`).join(" ");
+  return `<svg width="${w}" height="${h}" style="display:block"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+}
+
+// ── Render ──
+function render() {
+  app.innerHTML = "";
+  if (!ALL_DATA) { app.innerHTML = '<div class="loading">Loading data…</div>'; return; }
+  if (state.view === "detail" && state.selected) { renderDetail(); return; }
+  renderOverview();
+}
+
+function renderOverview() {
+  const terr = getTerritory();
+  const isChannel = state.channel !== "overall";
+  const chData = isChannel ? getChannelData(terr) : null;
+
+  // ── Header + Filters ──
+  let html = `<h1>Series Projection Dashboard</h1><p class="subtitle">Readthrough & ROI by channel</p>`;
+
+  html += `<div class="filters" style="margin-top:16px">`;
+  // Territory
+  html += `<div class="filter-group"><span class="filter-group-label">Territory</span>`;
+  ["Total","GB","US"].forEach(t => {
+    html += `<button class="ftab ${state.territory===t?'active-territory':''}" data-territory="${t}">${t === 'Total' ? 'World' : t}</button>`;
+  });
+  html += `</div>`;
+  // Channel
+  html += `<div class="filter-group"><span class="filter-group-label">Channel</span>`;
+  [["overall","Overall"],["alc_ebook","ALC Ebook"],["kenp","KENP"],["pod","POD"]].forEach(([k,l]) => {
+    const cls = state.channel===k ? (k==="overall"?"active-overall":`active-${k==='alc_ebook'?'alc':k}`) : "";
+    html += `<button class="ftab ${cls}" data-channel="${k}">${l}</button>`;
+  });
+  html += `</div>`;
+  // Genre
+  const genres = new Set();
+  const seriesList = isChannel ? (chData?.series_roi||[]) : (terr?.overall?.series_roi||[]);
+  seriesList.forEach(s => { if(s.genre) genres.add(s.genre); });
+  html += `<select id="genre-filter"><option value="all">All Genres</option>`;
+  [...genres].sort().forEach(g => { html += `<option value="${g}" ${state.genre===g?'selected':''}>${g}</option>`; });
+  html += `</select>`;
+  html += `</div>`;
+
+  // ── Metrics ──
+  if (isChannel) {
+    const sm = chData?.summary || {};
+    html += `<div class="metric-grid">
+      <div class="metric-card"><span class="metric-label">Series</span><span class="metric-val">${sm.total_series||0}</span></div>
+      <div class="metric-card"><span class="metric-label">Avg Channel ROI</span><span class="metric-val">${sm.avg_roi||0}x</span></div>
+      <div class="metric-card"><span class="metric-label">Avg Readthrough</span><span class="metric-val">${pct(sm.avg_readthrough||0)}</span></div>
+      <div class="metric-card"><span class="metric-label">Channel Revenue</span><span class="metric-val">${fmtGBP(sm.total_revenue||0)}</span></div>
+    </div>`;
+  } else {
+    const sm = terr?.summary || {};
+    html += `<div class="metric-grid">
+      <div class="metric-card"><span class="metric-label">Total Series</span><span class="metric-val">${sm.total_series||0}</span></div>
+      <div class="metric-card"><span class="metric-label">Avg ROI Multiplier</span><span class="metric-val">${sm.avg_roi_multiplier||0}x</span></div>
+      <div class="metric-card"><span class="metric-label">Median ROI</span><span class="metric-val">${sm.median_roi_multiplier||0}x</span></div>
+      <div class="metric-card"><span class="metric-label">Total Revenue</span><span class="metric-val">${fmtGBP(sm.total_revenue_gbp||0)}</span></div>
+    </div>`;
+  }
+
+  // ── Table ──
+  if (isChannel) {
+    html += renderChannelTable(chData, seriesList);
+  } else {
+    html += renderOverallTable(terr, seriesList);
+  }
+
+  app.innerHTML = html;
+  bindOverviewEvents();
+}
+
+function renderOverallTable(terr, list) {
+  let filtered = list.filter(s => {
+    if (state.genre !== "all" && s.genre !== state.genre) return false;
+    if (s.total_books < state.minBooks) return false;
+    return true;
+  });
+
+  // Sort
+  filtered.sort((a,b) => {
+    let av = a[state.sort]||0, bv = b[state.sort]||0;
+    if (typeof av === 'string') { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    return state.dir === "desc" ? (bv > av ? 1 : bv < av ? -1 : 0) : (av > bv ? 1 : av < bv ? -1 : 0);
+  });
+
+  const monthly = terr?.overall?.monthly_revenue || {};
+
+  let html = `<span class="count">${filtered.length} series</span>`;
+  html += `<div class="table-wrap"><table><thead><tr>`;
+  const cols = [
+    ["series","Series",""],["total_books","Books","r"],
+    ["roi_multiplier","ROI","r"],["total_series_revenue_gbp","Revenue","r"],
+    ["","Mix","r"],["","Trend","r"]
+  ];
+  cols.forEach(([key,label,cls]) => {
+    const sortable = key ? 'sortable' : '';
+    const sorted = state.sort === key ? 'sorted' : '';
+    const arrow = state.sort === key ? (state.dir === 'desc' ? '↓' : '↑') : '↕';
+    html += `<th class="${cls} ${sortable} ${sorted}" ${key?`data-sort="${key}"`:''}>
+      ${label} ${key?`<span class="sort-arrow">${arrow}</span>`:''}
+    </th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  filtered.forEach(s => {
+    const mv = (monthly[s.series]||[]).map(m=>m.total_revenue_gbp);
+    html += `<tr class="row" data-series="${s.series}">
+      <td><span class="series-name">${s.series}</span><br><span class="series-meta">${s.author} · ${s.genre}</span></td>
+      <td class="r">${s.total_books}</td>
+      <td class="r" style="font-weight:600">${s.roi_multiplier}x</td>
+      <td class="r">${fmtGBP(s.total_series_revenue_gbp)}</td>
+      <td class="r">
+        <span class="ch-badge ch-alc">${pct(s.ebook_share)}</span>
+        <span class="ch-badge ch-kenp">${pct(s.kenp_share)}</span>
+        <span class="ch-badge ch-pod">${pct(s.pod_share)}</span>
+      </td>
+      <td class="r">${sparkSVG(mv)}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function renderChannelTable(chData, list) {
+  const ch = state.channel;
+  let filtered = list.filter(s => {
+    if (state.genre !== "all" && s.genre !== state.genre) return false;
+    if (s.total_books < state.minBooks) return false;
+    return true;
+  });
+
+  const sortKey = state.sort === 'roi_multiplier' ? 'channel_roi_multiplier' :
+                  state.sort === 'total_series_revenue_gbp' ? 'total_channel_revenue_gbp' :
+                  state.sort === 'series_value_per_reader_gbp' ? 'value_per_b1_unit' : state.sort;
+
+  filtered.sort((a,b) => {
+    let av = a[sortKey]||0, bv = b[sortKey]||0;
+    if (typeof av === 'string') { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    return state.dir === "desc" ? (bv > av ? 1 : bv < av ? -1 : 0) : (av > bv ? 1 : av < bv ? -1 : 0);
+  });
+
+  const monthly = chData?.monthly_revenue || {};
+  const color = channelColor(ch);
+  const baseLabel = ch === 'kenp' ? 'B1 KENP' : 'B1 Units';
+  const valLabel = ch === 'kenp' ? '£/B1 KENP pg' : '£/B1 Sale';
+
+  let html = `<span class="count">${filtered.length} series</span>`;
+  html += `<div class="table-wrap"><table><thead><tr>`;
+  const cols = [
+    ["series","Series",""],["total_books","Books","r"],
+    ["channel_roi_multiplier","Ch. ROI","r"],["value_per_b1_unit",valLabel,"r"],
+    ["avg_readthrough","Readthrough","r"],["total_channel_revenue_gbp","Ch. Revenue","r"],
+    ["","Trend","r"]
+  ];
+  cols.forEach(([key,label,cls]) => {
+    const sortable = key ? 'sortable' : '';
+    const sorted = sortKey === key ? 'sorted' : '';
+    const arrow = sortKey === key ? (state.dir === 'desc' ? '↓' : '↑') : '↕';
+    html += `<th class="${cls} ${sortable} ${sorted}" ${key?`data-sort="${key}"`:''}>
+      ${label} ${key?`<span class="sort-arrow">${arrow}</span>`:''}
+    </th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  filtered.forEach(s => {
+    const mv = (monthly[s.series]||[]).map(m=>m.revenue_gbp);
+    const valDisplay = ch === 'kenp' ? `£${s.value_per_b1_unit.toFixed(4)}` : `£${s.value_per_b1_unit.toFixed(2)}`;
+    html += `<tr class="row" data-series="${s.series}">
+      <td><span class="series-name">${s.series}</span><br><span class="series-meta">${s.author} · ${s.genre}</span></td>
+      <td class="r">${s.total_books}</td>
+      <td class="r" style="font-weight:600">${s.channel_roi_multiplier}x</td>
+      <td class="r mono" style="font-size:12px">${valDisplay}</td>
+      <td class="r">${pct(s.avg_readthrough)}</td>
+      <td class="r">${fmtGBP(s.total_channel_revenue_gbp)}</td>
+      <td class="r">${sparkSVG(mv, color.replace('var(--accent-','').replace(')',''))}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function bindOverviewEvents() {
+  document.querySelectorAll('[data-territory]').forEach(btn => {
+    btn.addEventListener('click', () => { state.territory = btn.dataset.territory; render(); });
+  });
+  document.querySelectorAll('[data-channel]').forEach(btn => {
+    btn.addEventListener('click', () => { state.channel = btn.dataset.channel; render(); });
+  });
+  document.getElementById('genre-filter')?.addEventListener('change', e => { state.genre = e.target.value; render(); });
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      if (state.sort === key) state.dir = state.dir === 'desc' ? 'asc' : 'desc';
+      else { state.sort = key; state.dir = 'desc'; }
+      render();
+    });
+  });
+  document.querySelectorAll('tr.row').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const sName = tr.dataset.series;
+      state.selected = sName;
+      state.view = "detail";
+      render();
+    });
+  });
+}
+
+// ── Detail View ──
+function renderDetail() {
+  const terr = getTerritory();
+  const sName = state.selected;
+
+  // Find series info from overall
+  const overallList = terr?.overall?.series_roi || [];
+  const sInfo = overallList.find(s => s.series === sName) || {};
+
+  let html = `<button class="back-btn" id="back-btn">← Back to overview</button>`;
+  html += `<div class="detail-header">
+    <h2>${sInfo.series || sName}</h2>
+    <p>${sInfo.author||''} · ${sInfo.genre_subgenre || sInfo.genre || ''} · ${sInfo.total_books||'?'} books · ${state.territory === 'Total' ? 'World' : state.territory}</p>
+  </div>`;
+
+  // ── Overall metrics ──
+  html += `<div class="metric-grid">
+    <div class="metric-card highlight"><span class="metric-label">Overall ROI</span><span class="metric-val">${sInfo.roi_multiplier||0}x</span><span class="metric-sub">£1 on B1 → £${sInfo.roi_multiplier||0} total</span></div>
+    <div class="metric-card"><span class="metric-label">Total Revenue</span><span class="metric-val">${fmtGBP(sInfo.total_series_revenue_gbp||0)}</span></div>
+    <div class="metric-card"><span class="metric-label">B1 Revenue</span><span class="metric-val">${fmtGBP(sInfo.book1_revenue_gbp||0)}</span></div>
+    <div class="metric-card"><span class="metric-label">Books</span><span class="metric-val">${sInfo.total_books||0}</span></div>
+  </div>`;
+
+  // ── Revenue mix ──
+  html += `<div class="card"><h3>Revenue Mix</h3><div class="mix-bar">
+    <div class="mix-seg" style="width:${(sInfo.ebook_share||0)*100}%;background:var(--accent-alc);color:#fff">${pct(sInfo.ebook_share||0)} ALC</div>
+    <div class="mix-seg" style="width:${(sInfo.kenp_share||0)*100}%;background:var(--accent-kenp);color:#fff">${pct(sInfo.kenp_share||0)} KENP</div>
+    <div class="mix-seg" style="width:${(sInfo.pod_share||0)*100}%;background:var(--accent-pod);color:#fff">${pct(sInfo.pod_share||0)} POD</div>
+  </div></div>`;
+
+  // ── Side-by-side channel readthrough ──
+  html += `<div class="section"><h3>Readthrough by Channel</h3>
+    <p class="hint">Each channel calculated independently · % = retention from Book 1</p>
+    <div class="channel-grid">`;
+
+  const channels = [
+    { key: 'alc_ebook', label: 'ALC Ebook', color: 'var(--accent-alc)', unitLabel: 'units', valLabel: '£/B1 sale' },
+    { key: 'kenp', label: 'KENP', color: 'var(--accent-kenp)', unitLabel: 'KENP pages', valLabel: '£/B1 KENP pg' },
+    { key: 'pod', label: 'POD', color: 'var(--accent-pod)', unitLabel: 'units', valLabel: '£/B1 sale' },
+  ];
+
+  channels.forEach(ch => {
+    const chData = terr?.[ch.key];
+    const curve = chData?.readthrough_curves?.[sName] || [];
+    const chSummary = (chData?.series_roi||[]).find(s => s.series === sName);
+
+    html += `<div class="channel-card">
+      <h4><span class="ch-badge ch-${ch.key==='alc_ebook'?'alc':ch.key}">${ch.label}</span>`;
+    if (chSummary) {
+      html += ` <span style="font-size:12px;color:var(--t3);font-weight:400">${chSummary.channel_roi_multiplier}x ROI</span>`;
+    }
+    html += `</h4>`;
+
+    if (!curve.length) {
+      html += `<p style="font-size:12px;color:var(--t3);padding:12px 0">No data for this channel</p>`;
+    } else {
+      // Determine the base column name
+      const unitCol = ch.key === 'alc_ebook' ? 'ebook_units' : ch.key === 'kenp' ? 'kenp_pages' : 'pod_units';
+      const revCol = ch.key === 'alc_ebook' ? 'ebook_revenue_gbp' : ch.key === 'kenp' ? 'kenp_revenue_gbp' : 'pod_revenue_gbp';
+
+      const maxBase = Math.max(...curve.map(b => b[unitCol] || 0));
+
+      curve.forEach(b => {
+        const base = b[unitCol] || 0;
+        const w = maxBase > 0 ? (base / maxBase) * 100 : 0;
+        const rt = b.readthrough_from_book1;
+        const baseDisplay = ch.key === 'kenp' ? fmtN(base) + ' pg' : fmtN(base);
+        html += `<div class="bar-row">
+          <span class="bar-label">B${b.book_number}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${ch.color}"></div></div>
+          <span class="bar-val">${pct(rt)}</span>
+        </div>`;
+      });
+
+      // Value summary
+      if (chSummary) {
+        const valDisplay = ch.key === 'kenp' ? `£${chSummary.value_per_b1_unit.toFixed(4)}` : `£${chSummary.value_per_b1_unit.toFixed(2)}`;
+        html += `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--b1);font-size:12px;color:var(--t2)">
+          Value: <strong style="color:var(--t1)">${valDisplay}</strong> <span>${ch.valLabel}</span><br>
+          Avg readthrough: <strong style="color:var(--t1)">${pct(chSummary.avg_readthrough)}</strong>
+        </div>`;
+      }
+    }
+    html += `</div>`;
+  });
+
+  html += `</div></div>`;
+
+  // ── Cumulative value per B1 unit (all channels side by side) ──
+  html += `<div class="card"><h3>Cumulative Value per Book 1 Unit</h3>
+    <p class="hint" style="margin-top:-8px;margin-bottom:14px">How value accumulates through the series for each channel</p>`;
+
+  channels.forEach(ch => {
+    const curve = terr?.[ch.key]?.readthrough_curves?.[sName] || [];
+    if (!curve.length) return;
+    const maxCum = Math.max(...curve.map(b => b.cumulative_value_per_b1_unit || 0));
+    if (maxCum <= 0) return;
+
+    html += `<div style="margin-bottom:14px"><span class="ch-badge ch-${ch.key==='alc_ebook'?'alc':ch.key}" style="margin-bottom:6px;display:inline-block">${ch.label}</span>`;
+    curve.forEach(b => {
+      const cum = b.cumulative_value_per_b1_unit || 0;
+      const w = (cum / maxCum) * 100;
+      const valDisplay = ch.key === 'kenp' ? `£${cum.toFixed(4)}` : `£${cum.toFixed(2)}`;
+      html += `<div class="bar-row">
+        <span class="bar-label">B${b.book_number}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${ch.color};opacity:0.7"></div></div>
+        <span class="bar-val mono" style="font-size:11px">${valDisplay}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  // ── Monthly revenue trend ──
+  const months = terr?.overall?.monthly_revenue?.[sName] || [];
+  if (months.length) {
+    const maxMRev = Math.max(...months.map(m=>m.total_revenue_gbp)) || 1;
+    const mBarW = Math.min(12, (Math.max(500,months.length*16)/months.length)-2);
+    const mW = Math.max(500, months.length*(mBarW+2)+40);
+    const mChartH = 140;
+
+    let monthlySVG = `<svg width="${mW}" height="${mChartH+40}" style="display:block">`;
+    months.forEach((m,i) => {
+      const x = 20+i*(mBarW+2);
+      const ebH = (m.ebook_revenue_gbp/maxMRev)*mChartH;
+      const knH = (m.kenp_revenue_gbp/maxMRev)*mChartH;
+      const pbH = ((m.pod_revenue_gbp||m.paperback_revenue_gbp||0)/maxMRev)*mChartH;
+      const totalH = ebH + knH + pbH;
+      let y = mChartH;
+
+      monthlySVG += `<rect x="${x}" y="${y-ebH}" width="${mBarW}" height="${Math.max(ebH,0)}" fill="var(--accent-alc)" opacity="0.8"/>`;
+      y -= ebH;
+      monthlySVG += `<rect x="${x}" y="${y-knH}" width="${mBarW}" height="${Math.max(knH,0)}" fill="var(--accent-kenp)" opacity="0.8"/>`;
+      y -= knH;
+      monthlySVG += `<rect x="${x}" y="${y-pbH}" width="${mBarW}" height="${Math.max(pbH,0)}" fill="var(--accent-pod)" opacity="0.8"/>`;
+
+      if (i % Math.ceil(months.length/10) === 0) {
+        monthlySVG += `<text x="${x+mBarW/2}" y="${mChartH+14}" text-anchor="middle" font-size="9" fill="var(--t3)" transform="rotate(-45,${x+mBarW/2},${mChartH+14})">${(m.sale_month||"").toString().slice(0,7)}</text>`;
+      }
+    });
+    // Legend
+    const lx = mW - 180;
+    monthlySVG += `<rect x="${lx}" y="4" width="8" height="8" rx="2" fill="var(--accent-alc)"/><text x="${lx+12}" y="12" font-size="10" fill="var(--t2)">ALC Ebook</text>`;
+    monthlySVG += `<rect x="${lx+80}" y="4" width="8" height="8" rx="2" fill="var(--accent-kenp)"/><text x="${lx+92}" y="12" font-size="10" fill="var(--t2)">KENP</text>`;
+    monthlySVG += `<rect x="${lx+130}" y="4" width="8" height="8" rx="2" fill="var(--accent-pod)"/><text x="${lx+142}" y="12" font-size="10" fill="var(--t2)">POD</text>`;
+    monthlySVG += `</svg>`;
+
+    html += `<div class="card"><h3>Monthly Revenue Trend</h3><div class="chart-scroll">${monthlySVG}</div></div>`;
+  }
+
+  app.innerHTML = html;
+
+  document.getElementById("back-btn").addEventListener("click", () => {
+    state.view = "overview"; state.selected = null; render();
+  });
+}
+
+// ── Load data ──
+async function init() {
+  try {
+    const resp = await fetch("series_projection_data.json");
+    if (resp.ok) { ALL_DATA = await resp.json(); render(); return; }
+  } catch (e) {
+    console.error("FETCH ERROR:", e);
+  }
+  if (typeof DATA !== "undefined") {
+    ALL_DATA = DATA;
+    render();
+    return;
+  }
+  app.innerHTML = '<div class="loading" style="color:#ef4444">Could not load data. Place series_projection_data.js (local) or series_projection_data.json (hosted) in the same folder.</div>';
+}
+
+init();
+</script>
+</body>
+</html>
