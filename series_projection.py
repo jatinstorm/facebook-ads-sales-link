@@ -112,7 +112,7 @@ def run_pipeline():
             SUM(Net_Units_Sold) AS units,
             SUM(Royalty_GBP) AS revenue_gbp
         FROM `storm-pub-amazon-sales.daily_sales.daily_sales_paperback_agg`
-        WHERE CAST(ISBN AS STRING) IN ({isbn_list})
+        WHERE CAST(ISBN AS STRING) IN ({isbn_list}) AND Royalty_GBP > 0
         GROUP BY ISBN, sale_month, Marketplace
     """).to_dataframe()
     print(f"     {len(paperback_df)} rows")
@@ -147,40 +147,6 @@ def run_pipeline():
 
     for df in [ebook_merged, paperback_merged, kenp_merged]:
         df['territory'] = df['Marketplace'].apply(lambda m: 'GB' if m == 'Amazon.co.uk' else 'US')
-
-
-    # ── Diagnostic: check B1 KENP by territory ──
-    print("\n  Diagnostic: Book 1 KENP pages by territory...")
-    b1_kenp = kenp_merged[kenp_merged['book_number'] == 1].groupby(
-        ['Series', 'territory']
-    ).agg(kenp_pages=('kenp_pages', 'sum')).reset_index()
-    print(b1_kenp.sort_values('kenp_pages').head(20).to_string())
-
-    # Which series have NO Book 1 KENP at all in a territory?
-    all_series = kenp_merged['Series'].unique()
-    b1_kenp_series = kenp_merged[kenp_merged['book_number'] == 1].groupby(
-        ['Series', 'territory']
-    )['kenp_pages'].sum().reset_index()
-
-    for territory in ['GB', 'US']:
-        has_b1 = set(b1_kenp_series[b1_kenp_series['territory'] == territory]['Series'])
-        has_any = set(kenp_merged[kenp_merged['territory'] == territory]['Series'])
-        missing_b1 = has_any - has_b1
-        if missing_b1:
-            print(f"\n  {territory} — series with KENP on later books but NO Book 1 KENP:")
-            for s in sorted(missing_b1):
-                print(f"    {s}")
-
-    seb = b1_kenp[b1_kenp['Series'].str.contains('Sebastian Clifford')]
-    print(seb)
-
-    seb = kenp_merged[kenp_merged['Series'].str.contains('Sebastian Clifford')]
-    seb_by_book = seb[seb['territory'] == 'GB'].groupby('book_number')['kenp_pages'].sum()
-    print(seb_by_book.sort_index())
-
-    seb_kenp = kenp_merged[kenp_merged['Series'].str.contains('Sebastian Clifford') & (kenp_merged['territory'] == 'GB')]
-    seb_agg = seb_kenp.groupby(['Series', 'book_number', 'Title'])['kenp_pages'].sum().reset_index()
-    print(seb_agg.sort_values('book_number').to_string())
 
     # ──────────────────────────────────────────────
     # STEP 4-7: Calculate per territory, per channel
@@ -302,7 +268,12 @@ def run_pipeline():
                 results.append(group)
 
             if not results:
-                return pd.DataFrame(), {}, [], {}
+                return {
+                    'series_roi': [],
+                    'readthrough_curves': {},
+                    'monthly_revenue': {},
+                    'genre_stats': [],
+                }
 
             readthrough = pd.concat(results, ignore_index=True)
 
@@ -477,18 +448,22 @@ def run_pipeline():
         def channel_summary(result):
             roi_list = result.get('series_roi', [])
             if not roi_list:
-                return {'total_series': 0, 'avg_roi': 0, 'avg_readthrough': 0, 'total_revenue': 0}
+                return {'total_series': 0, 'avg_roi': 0, 'weighted_roi': 0, 'avg_readthrough': 0, 'total_revenue': 0}
             df = pd.DataFrame(roi_list)
+            total_b1_rev = df['book1_revenue_gbp'].sum()
+            total_ch_rev = df['total_channel_revenue_gbp'].sum()
             return {
                 'total_series': int(len(df)),
                 'avg_roi': round(float(df['channel_roi_multiplier'].mean()), 2),
+                'weighted_roi': round(float(total_ch_rev / total_b1_rev), 2) if total_b1_rev > 0 else 0,
                 'avg_readthrough': round(float(df['avg_readthrough'].mean()), 4),
-                'total_revenue': round(float(df['total_channel_revenue_gbp'].sum()), 2),
+                'total_revenue': round(float(total_ch_rev), 2),
             }
 
         overall_summary = {
             'total_series': int(len(overall_df)),
             'avg_roi_multiplier': round(float(overall_df['roi_multiplier'].mean()), 2) if len(overall_df) > 0 else 0,
+            'weighted_roi_multiplier': round(float(overall_df['total_series_revenue_gbp'].sum() / overall_df['book1_revenue_gbp'].sum()), 2) if len(overall_df) > 0 and overall_df['book1_revenue_gbp'].sum() > 0 else 0,
             'median_roi_multiplier': round(float(overall_df['roi_multiplier'].median()), 2) if len(overall_df) > 0 else 0,
             'total_revenue_gbp': round(float(overall_df['total_series_revenue_gbp'].sum()), 2) if len(overall_df) > 0 else 0,
         }
@@ -545,10 +520,10 @@ def run_pipeline():
     print(f"\n{'='*50}")
     print(f"  DONE — series_projection_data.json saved")
     print(f"  {total['summary']['total_series']} series analysed")
-    print(f"  Overall avg ROI: {total['summary']['avg_roi_multiplier']}x")
-    print(f"  ALC Ebook — {total['alc_ebook']['summary']['total_series']} series, avg ROI {total['alc_ebook']['summary']['avg_roi']}x")
-    print(f"  KENP      — {total['kenp']['summary']['total_series']} series, avg ROI {total['kenp']['summary']['avg_roi']}x")
-    print(f"  POD       — {total['pod']['summary']['total_series']} series, avg ROI {total['pod']['summary']['avg_roi']}x")
+    print(f"  Overall weighted ROI: {total['summary']['weighted_roi_multiplier']}x  (avg {total['summary']['avg_roi_multiplier']}x)")
+    print(f"  ALC Ebook — {total['alc_ebook']['summary']['total_series']} series, weighted ROI {total['alc_ebook']['summary']['weighted_roi']}x  (avg {total['alc_ebook']['summary']['avg_roi']}x)")
+    print(f"  KENP      — {total['kenp']['summary']['total_series']} series, weighted ROI {total['kenp']['summary']['weighted_roi']}x  (avg {total['kenp']['summary']['avg_roi']}x)")
+    print(f"  POD       — {total['pod']['summary']['total_series']} series, weighted ROI {total['pod']['summary']['weighted_roi']}x  (avg {total['pod']['summary']['avg_roi']}x)")
     print(f"{'='*50}")
 
 

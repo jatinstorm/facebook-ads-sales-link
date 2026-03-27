@@ -248,8 +248,8 @@ function renderOverview() {
     html += `<div class="metric-grid">
       <div class="metric-card"><span class="metric-label">Series</span><span class="metric-val">${sm.total_series||0}</span></div>
       <div class="metric-card">
-        <span class="metric-label">Avg Channel Rev. Multiplier</span>
-        <span class="metric-val">${sm.avg_roi || 0}x</span>
+        <span class="metric-label">Avg Rev. Multiplier</span>
+        <span class="metric-val">${sm.weighted_roi || 0}x</span>
       </div>
       <div class="metric-card"><span class="metric-label">Avg Readthrough</span><span class="metric-val">${pct(sm.avg_readthrough||0)}</span></div>
       <div class="metric-card"><span class="metric-label">Channel Revenue</span><span class="metric-val">${fmtGBP(sm.total_revenue||0)}</span></div>
@@ -258,7 +258,10 @@ function renderOverview() {
     const sm = terr?.summary || {};
     html += `<div class="metric-grid">
       <div class="metric-card"><span class="metric-label">Total Series</span><span class="metric-val">${sm.total_series||0}</span></div>
-      <div class="metric-card"><span class="metric-label">Avg Rev. Multiplier</span><span class="metric-val">${sm.avg_roi_multiplier||0}x</span></div>
+      <div class="metric-card">
+        <span class="metric-label">Avg Rev. Multiplier</span>
+        <span class="metric-val">${sm.weighted_roi_multiplier||0}x</span>
+      </div>
       <div class="metric-card"><span class="metric-label">Median ROI</span><span class="metric-val">${sm.median_roi_multiplier||0}x</span></div>
       <div class="metric-card"><span class="metric-label">Total Revenue</span><span class="metric-val">${fmtGBP(sm.total_revenue_gbp||0)}</span></div>
     </div>`;
@@ -549,11 +552,6 @@ function renderDetail() {
   });
 
   html += `</div></div>`;
-
-  // ── Sequential Readthrough Chart ──
-  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
-
-  // Left: Monthly revenue (we'll close the grid after)
 
   // ── Monthly revenue trend ──
   const months = terr?.overall?.monthly_revenue?.[sName] || [];
