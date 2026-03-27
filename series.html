@@ -247,7 +247,10 @@ function renderOverview() {
     const sm = chData?.summary || {};
     html += `<div class="metric-grid">
       <div class="metric-card"><span class="metric-label">Series</span><span class="metric-val">${sm.total_series||0}</span></div>
-      <div class="metric-card"><span class="metric-label">Avg Channel Rev. Multiplier-val">${sm.avg_roi||0}x</span></div>
+      <div class="metric-card">
+        <span class="metric-label">Avg Channel Rev. Multiplier</span>
+        <span class="metric-val">${sm.avg_roi || 0}x</span>
+      </div>
       <div class="metric-card"><span class="metric-label">Avg Readthrough</span><span class="metric-val">${pct(sm.avg_readthrough||0)}</span></div>
       <div class="metric-card"><span class="metric-label">Channel Revenue</span><span class="metric-val">${fmtGBP(sm.total_revenue||0)}</span></div>
     </div>`;
@@ -352,7 +355,7 @@ function renderChannelTable(chData, list) {
   const cols = [
     ["series","Series",""],["total_books","Books","r"],
     ["value_per_b1_unit",valLabel,"r"],
-    ["avg_readthrough","Readthrough","r"],["total_channel_revenue_gbp","Ch. Revenue","r"],
+    ["total_channel_revenue_gbp","Ch. Revenue","r"],
     ["","Trend","r"]
   ];
   cols.forEach(([key,label,cls]) => {
@@ -365,18 +368,25 @@ function renderChannelTable(chData, list) {
   });
   html += `</tr></thead><tbody>`;
 
-  filtered.forEach(s => {
-    const mv = (monthly[s.series]||[]).map(m=>m.revenue_gbp);
-    const valDisplay = ch === 'kenp' ? `£${s.value_per_b1_unit.toFixed(4)}` : `£${s.value_per_b1_unit.toFixed(2)}`;
-    html += `<tr class="row" data-series="${s.series}">
-      <td><span class="series-name">${s.series}</span><br><span class="series-meta">${s.author} · ${s.genre}</span></td>
-      <td class="r">${s.total_books}</td>
-      <td class="r mono" style="font-size:12px">${valDisplay}</td>
-      <td class="r">${pct(s.avg_readthrough)}</td>
-      <td class="r">${fmtGBP(s.total_channel_revenue_gbp)}</td>
-      <td class="r">${sparkSVG(mv, ch === 'alc_ebook' ? '#6366f1' : ch === 'kenp' ? '#10b981' : '#f59e0b')}
-    </tr>`;
-  });
+filtered.forEach(s => {
+  const mv = (monthly[s.series] || []).map(m => m.revenue_gbp);
+  const valDisplay = ch === 'kenp'
+    ? `£${(s.value_per_b1_unit || 0).toFixed(4)}`
+    : `£${(s.value_per_b1_unit || 0).toFixed(2)}`;
+
+  html += `<tr class="row" data-series="${s.series}">
+    <td>
+      <span class="series-name">${s.series}</span><br>
+      <span class="series-meta">${s.author} · ${s.genre}</span>
+    </td>
+    <td class="r">${s.total_books}</td>
+    <td class="r mono" style="font-size:12px">${valDisplay}</td>
+    <td class="r">${fmtGBP(s.total_channel_revenue_gbp)}</td>
+    <td class="r">
+      ${sparkSVG(mv, ch === 'alc_ebook' ? '#6366f1' : ch === 'kenp' ? '#10b981' : '#f59e0b')}
+    </td>
+  </tr>`;
+});
   html += `</tbody></table></div>`;
   return html;
 }
