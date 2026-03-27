@@ -217,7 +217,7 @@ function renderOverview() {
   const chData = isChannel ? getChannelData(terr) : null;
 
   // ── Header + Filters ──
-  let html = `<h1>Series Projection Dashboard</h1><p class="subtitle">Readthrough & ROI by channel</p>`;
+  let html = `<h1>Series Projection Dashboard</h1><p class="subtitle">Readthrough & Revenue by Channel</p>`;
 
   html += `<div class="filters" style="margin-top:16px">`;
   // Territory
@@ -247,7 +247,7 @@ function renderOverview() {
     const sm = chData?.summary || {};
     html += `<div class="metric-grid">
       <div class="metric-card"><span class="metric-label">Series</span><span class="metric-val">${sm.total_series||0}</span></div>
-      <div class="metric-card"><span class="metric-label">Avg Channel ROI</span><span class="metric-val">${sm.avg_roi||0}x</span></div>
+      <div class="metric-card"><span class="metric-label">Avg Channel Rev. Multiplier-val">${sm.avg_roi||0}x</span></div>
       <div class="metric-card"><span class="metric-label">Avg Readthrough</span><span class="metric-val">${pct(sm.avg_readthrough||0)}</span></div>
       <div class="metric-card"><span class="metric-label">Channel Revenue</span><span class="metric-val">${fmtGBP(sm.total_revenue||0)}</span></div>
     </div>`;
@@ -255,7 +255,7 @@ function renderOverview() {
     const sm = terr?.summary || {};
     html += `<div class="metric-grid">
       <div class="metric-card"><span class="metric-label">Total Series</span><span class="metric-val">${sm.total_series||0}</span></div>
-      <div class="metric-card"><span class="metric-label">Avg ROI Multiplier</span><span class="metric-val">${sm.avg_roi_multiplier||0}x</span></div>
+      <div class="metric-card"><span class="metric-label">Avg Rev. Multiplier</span><span class="metric-val">${sm.avg_roi_multiplier||0}x</span></div>
       <div class="metric-card"><span class="metric-label">Median ROI</span><span class="metric-val">${sm.median_roi_multiplier||0}x</span></div>
       <div class="metric-card"><span class="metric-label">Total Revenue</span><span class="metric-val">${fmtGBP(sm.total_revenue_gbp||0)}</span></div>
     </div>`;
@@ -292,8 +292,8 @@ function renderOverallTable(terr, list) {
   html += `<div class="table-wrap"><table><thead><tr>`;
   const cols = [
     ["series","Series",""],["total_books","Books","r"],
-    ["roi_multiplier","ROI","r"],["total_series_revenue_gbp","Revenue","r"],
-    ["","Mix","r"],["","Trend","r"]
+    ["roi_multiplier","Rev. Multiplier","r"],["total_series_revenue_gbp","Revenue","r"],
+    ["","Mix (ALC/KU/Print)","r"],["","Trend","r"]
   ];
   cols.forEach(([key,label,cls]) => {
     const sortable = key ? 'sortable' : '';
@@ -351,7 +351,7 @@ function renderChannelTable(chData, list) {
   html += `<div class="table-wrap"><table><thead><tr>`;
   const cols = [
     ["series","Series",""],["total_books","Books","r"],
-    ["channel_roi_multiplier","Ch. ROI","r"],["value_per_b1_unit",valLabel,"r"],
+    ["value_per_b1_unit",valLabel,"r"],
     ["avg_readthrough","Readthrough","r"],["total_channel_revenue_gbp","Ch. Revenue","r"],
     ["","Trend","r"]
   ];
@@ -371,11 +371,10 @@ function renderChannelTable(chData, list) {
     html += `<tr class="row" data-series="${s.series}">
       <td><span class="series-name">${s.series}</span><br><span class="series-meta">${s.author} · ${s.genre}</span></td>
       <td class="r">${s.total_books}</td>
-      <td class="r" style="font-weight:600">${s.channel_roi_multiplier}x</td>
       <td class="r mono" style="font-size:12px">${valDisplay}</td>
       <td class="r">${pct(s.avg_readthrough)}</td>
       <td class="r">${fmtGBP(s.total_channel_revenue_gbp)}</td>
-      <td class="r">${sparkSVG(mv, color.replace('var(--accent-','').replace(')',''))}</td>
+      <td class="r">${sparkSVG(mv, ch === 'alc_ebook' ? '#6366f1' : ch === 'kenp' ? '#10b981' : '#f59e0b')}
     </tr>`;
   });
   html += `</tbody></table></div>`;
@@ -417,15 +416,23 @@ function renderDetail() {
   const overallList = terr?.overall?.series_roi || [];
   const sInfo = overallList.find(s => s.series === sName) || {};
 
-  let html = `<button class="back-btn" id="back-btn">← Back to overview</button>`;
+  let html = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+    <button class="back-btn" id="back-btn">← Back to overview</button>
+    <div class="filter-group">
+      <span class="filter-group-label">Territory</span>
+      ${["Total","GB","US"].map(t => 
+        `<button class="ftab ${state.territory===t?'active-territory':''}" data-detail-territory="${t}">${t === 'Total' ? 'World' : t}</button>`
+      ).join('')}
+    </div>
+  </div>`;
   html += `<div class="detail-header">
     <h2>${sInfo.series || sName}</h2>
-    <p>${sInfo.author||''} · ${sInfo.genre_subgenre || sInfo.genre || ''} · ${sInfo.total_books||'?'} books · ${state.territory === 'Total' ? 'World' : state.territory}</p>
+    <p>${sInfo.author||''} · ${sInfo.genre_subgenre || sInfo.genre || ''} · ${sInfo.total_books||'?'} books</p>
   </div>`;
 
   // ── Overall metrics ──
   html += `<div class="metric-grid">
-    <div class="metric-card highlight"><span class="metric-label">Overall ROI</span><span class="metric-val">${sInfo.roi_multiplier||0}x</span><span class="metric-sub">£1 on B1 → £${sInfo.roi_multiplier||0} total</span></div>
+    <div class="metric-card highlight"><span class="metric-label">Overall Rev. Multiplier</span><span class="metric-val">${sInfo.roi_multiplier||0}x</span><span class="metric-sub">£1 on B1 → £${sInfo.roi_multiplier||0} total</span></div>
     <div class="metric-card"><span class="metric-label">Total Revenue</span><span class="metric-val">${fmtGBP(sInfo.total_series_revenue_gbp||0)}</span></div>
     <div class="metric-card"><span class="metric-label">B1 Revenue</span><span class="metric-val">${fmtGBP(sInfo.book1_revenue_gbp||0)}</span></div>
     <div class="metric-card"><span class="metric-label">Books</span><span class="metric-val">${sInfo.total_books||0}</span></div>
@@ -486,8 +493,7 @@ function renderDetail() {
       if (chSummary) {
         const valDisplay = ch.key === 'kenp' ? `£${chSummary.value_per_b1_unit.toFixed(4)}` : `£${chSummary.value_per_b1_unit.toFixed(2)}`;
         html += `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--b1);font-size:12px;color:var(--t2)">
-          Value: <strong style="color:var(--t1)">${valDisplay}</strong> <span>${ch.valLabel}</span><br>
-          Avg readthrough: <strong style="color:var(--t1)">${pct(chSummary.avg_readthrough)}</strong>
+         Value: <strong style="color:var(--t1)">${valDisplay}</strong> <span>${ch.valLabel}</span>
         </div>`;
       }
     }
@@ -496,30 +502,48 @@ function renderDetail() {
 
   html += `</div></div>`;
 
-  // ── Cumulative value per B1 unit (all channels side by side) ──
-  html += `<div class="card"><h3>Cumulative Value per Book 1 Unit</h3>
-    <p class="hint" style="margin-top:-8px;margin-bottom:14px">How value accumulates through the series for each channel</p>`;
+  // ── Revenue by Channel (side by side, same layout as readthrough) ──
+  html += `<div class="section"><h3>Revenue by Channel</h3>
+    <p class="hint">Total revenue per book in each channel</p>
+    <div class="channel-grid">`;
 
   channels.forEach(ch => {
-    const curve = terr?.[ch.key]?.readthrough_curves?.[sName] || [];
-    if (!curve.length) return;
-    const maxCum = Math.max(...curve.map(b => b.cumulative_value_per_b1_unit || 0));
-    if (maxCum <= 0) return;
+    const chData = terr?.[ch.key];
+    const curve = chData?.readthrough_curves?.[sName] || [];
+    const chSummary = (chData?.series_roi||[]).find(s => s.series === sName);
+    const revCol = ch.key === 'alc_ebook' ? 'ebook_revenue_gbp' : ch.key === 'kenp' ? 'kenp_revenue_gbp' : 'pod_revenue_gbp';
 
-    html += `<div style="margin-bottom:14px"><span class="ch-badge ch-${ch.key==='alc_ebook'?'alc':ch.key}" style="margin-bottom:6px;display:inline-block">${ch.label}</span>`;
-    curve.forEach(b => {
-      const cum = b.cumulative_value_per_b1_unit || 0;
-      const w = (cum / maxCum) * 100;
-      const valDisplay = ch.key === 'kenp' ? `£${cum.toFixed(4)}` : `£${cum.toFixed(2)}`;
-      html += `<div class="bar-row">
-        <span class="bar-label">B${b.book_number}</span>
-        <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${ch.color};opacity:0.7"></div></div>
-        <span class="bar-val mono" style="font-size:11px">${valDisplay}</span>
-      </div>`;
-    });
+    html += `<div class="channel-card">
+      <h4><span class="ch-badge ch-${ch.key==='alc_ebook'?'alc':ch.key}">${ch.label}</span>`;
+    if (chSummary) {
+      html += ` <span style="font-size:12px;color:var(--t3);font-weight:400">${fmtGBP(chSummary.total_channel_revenue_gbp)}</span>`;
+    }
+    html += `</h4>`;
+
+    if (!curve.length) {
+      html += `<p style="font-size:12px;color:var(--t3);padding:12px 0">No data for this channel</p>`;
+    } else {
+      const maxRev = Math.max(...curve.map(b => b[revCol] || 0));
+
+      curve.forEach(b => {
+        const rev = b[revCol] || 0;
+        const w = maxRev > 0 ? (rev / maxRev) * 100 : 0;
+        html += `<div class="bar-row">
+          <span class="bar-label">B${b.book_number}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${ch.color}"></div></div>
+          <span class="bar-val">${fmtGBP(rev)}</span>
+        </div>`;
+      });
+    }
     html += `</div>`;
   });
-  html += `</div>`;
+
+  html += `</div></div>`;
+
+  // ── Sequential Readthrough Chart ──
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+
+  // Left: Monthly revenue (we'll close the grid after)
 
   // ── Monthly revenue trend ──
   const months = terr?.overall?.monthly_revenue?.[sName] || [];
@@ -560,8 +584,14 @@ function renderDetail() {
 
   app.innerHTML = html;
 
-  document.getElementById("back-btn").addEventListener("click", () => {
+document.getElementById("back-btn").addEventListener("click", () => {
     state.view = "overview"; state.selected = null; render();
+  });
+  document.querySelectorAll('[data-detail-territory]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.territory = btn.dataset.detailTerritory;
+      render();
+    });
   });
 }
 
