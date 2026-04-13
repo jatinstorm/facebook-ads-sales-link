@@ -568,6 +568,21 @@ def run_pipeline():
             s.get('series'): s.get('roi_multiplier')
             for s in terr_data.get('overall', {}).get('series_roi', [])
         }
+
+        ebook_value_map = {
+            s.get('series'): s.get('value_per_b1_unit')
+            for s in terr_data.get('alc_ebook', {}).get('series_roi', [])
+        }
+
+        kenp_value_map = {
+            s.get('series'): s.get('value_per_b1_unit')
+            for s in terr_data.get('kenp', {}).get('series_roi', [])
+        }
+
+        pod_value_map = {
+            s.get('series'): s.get('value_per_b1_unit')
+            for s in terr_data.get('pod', {}).get('series_roi', [])
+        }
         ebook_map = {
             s.get('series'): s.get('channel_roi_multiplier')
             for s in terr_data.get('alc_ebook', {}).get('series_roi', [])
@@ -590,6 +605,9 @@ def run_pipeline():
                 'series_multiplier_ebook': ebook_map.get(series_name),
                 'series_multiplier_kenp': kenp_map.get(series_name),
                 'series_multiplier_pod': pod_map.get(series_name),
+                'ebook_value_per_unit': ebook_value_map.get(series_name),
+                'kenp_value_per_unit': kenp_value_map.get(series_name),
+                'pod_value_per_unit': pod_value_map.get(series_name),
             })
 
     mult_df = pd.DataFrame(mult_rows)
