@@ -61,19 +61,27 @@ def fetch_data(date=None):
     # Yesterday's active campaigns per book per territory
     active_query = f"""
     SELECT
-        Title, Edition_ID, Genre, Genre_Subgenre, Territory,
-        SUM(spend) AS spend, SUM(clicks) AS clicks,
-        SUM(impressions) AS impressions,
-        SUM(ebook_units) AS ebook_units,
-        SUM(paperback_units) AS paperback_units,
-        SUM(kenp) AS kenp,
-        SUM(ebook_revenue) AS ebook_revenue,
-        SUM(paperback_revenue) AS paperback_revenue,
-        SUM(kenp_revenue) AS kenp_revenue
-    FROM `marketing-489109.facebook_ads.ads_sales_analytics`
-    WHERE date_start = {date_filter}
-        AND Genre IS NOT NULL AND Genre != 'nan'
-    GROUP BY Title, Edition_ID, Genre, Genre_Subgenre, Territory
+        a.Title, a.Edition_ID, a.Genre, a.Genre_Subgenre, a.Territory,
+        a.Series_No,
+        SUM(a.spend) AS spend, SUM(a.clicks) AS clicks,
+        SUM(a.impressions) AS impressions,
+        SUM(a.ebook_units) AS ebook_units,
+        SUM(a.paperback_units) AS paperback_units,
+        SUM(a.kenp) AS kenp,
+        SUM(a.ebook_revenue) AS ebook_revenue,
+        SUM(a.paperback_revenue) AS paperback_revenue,
+        SUM(a.kenp_revenue) AS kenp_revenue,
+        SUM(
+          CASE WHEN a.Series_No = 1 THEN
+            (a.ebook_revenue + a.paperback_revenue + a.kenp_revenue) * m.series_multiplier - a.spend
+          END
+        ) AS series_profit
+    FROM `marketing-489109.facebook_ads.ads_sales_analytics` a
+    LEFT JOIN `marketing-489109.facebook_ads.series_multipliers` m
+        ON a.Series = m.Series AND a.Territory = m.Territory
+    WHERE a.date_start = {date_filter}
+        AND a.Genre IS NOT NULL AND a.Genre != 'nan'
+    GROUP BY a.Title, a.Edition_ID, a.Genre, a.Genre_Subgenre, a.Territory, a.Series_No
     """
 
     # Current run totals per book per territory (using gap detection)
@@ -93,6 +101,7 @@ def fetch_data(date=None):
     )
     SELECT
         a.Title, a.Edition_ID, a.Genre, a.Genre_Subgenre, a.Territory,
+        a.Series_No,
         COUNT(DISTINCT a.date_start) AS run_days,
         SUM(a.spend) AS spend, SUM(a.clicks) AS clicks,
         SUM(a.impressions) AS impressions,
@@ -101,18 +110,39 @@ def fetch_data(date=None):
         SUM(a.kenp) AS kenp,
         SUM(a.ebook_revenue) AS ebook_revenue,
         SUM(a.paperback_revenue) AS paperback_revenue,
-        SUM(a.kenp_revenue) AS kenp_revenue
+        SUM(a.kenp_revenue) AS kenp_revenue,
+        SUM(
+          CASE WHEN a.Series_No = 1 THEN
+            (a.ebook_revenue + a.paperback_revenue + a.kenp_revenue) * m.series_multiplier - a.spend
+          END
+        ) AS series_profit
     FROM `marketing-489109.facebook_ads.ads_sales_analytics` a
     JOIN run_starts r ON a.Edition_ID = r.Edition_ID
         AND a.Territory = r.Territory
         AND a.date_start >= r.run_start
+    LEFT JOIN `marketing-489109.facebook_ads.series_multipliers` m
+        ON a.Series = m.Series AND a.Territory = m.Territory
     WHERE a.date_start <= {date_filter}
         AND a.Genre IS NOT NULL AND a.Genre != 'nan'
-    GROUP BY a.Title, a.Edition_ID, a.Genre, a.Genre_Subgenre, a.Territory
+    GROUP BY a.Title, a.Edition_ID, a.Genre, a.Genre_Subgenre, a.Territory, a.Series_No
     """
 
     # Genre benchmarks (historical daily averages)
     benchmark_query = f"""
+    WITH base AS (
+      SELECT
+        a.*,
+        CASE WHEN a.Series_No = 1 THEN
+          (a.ebook_revenue + a.paperback_revenue + a.kenp_revenue) * m.series_multiplier - a.spend
+        END AS series_profit_row,
+        CASE WHEN a.Series_No = 1 AND a.spend > 0 THEN
+          ((a.ebook_revenue + a.paperback_revenue + a.kenp_revenue) * m.series_multiplier - a.spend) / a.spend * 100
+        END AS series_roi_row
+      FROM `marketing-489109.facebook_ads.ads_sales_analytics` a
+      LEFT JOIN `marketing-489109.facebook_ads.series_multipliers` m
+          ON a.Series = m.Series AND a.Territory = m.Territory
+      WHERE a.Genre IS NOT NULL AND a.Genre != 'nan'
+    )
     SELECT
         Genre, Genre_Subgenre, Territory,
         COUNT(DISTINCT Edition_ID) AS total_books,
@@ -126,9 +156,10 @@ def fetch_data(date=None):
         AVG(ebook_revenue) AS avg_ebook_revenue,
         AVG(paperback_revenue) AS avg_paperback_revenue,
         AVG(ebook_revenue + paperback_revenue + kenp_revenue) AS avg_revenue,
-        AVG(SAFE_DIVIDE((ebook_revenue + paperback_revenue + kenp_revenue) * 0.5 - spend, NULLIF(spend, 0)) * 100) AS avg_roi
-    FROM `marketing-489109.facebook_ads.ads_sales_analytics`
-    WHERE Genre IS NOT NULL AND Genre != 'nan'
+        AVG(SAFE_DIVIDE((ebook_revenue + paperback_revenue + kenp_revenue) * 0.5 - spend, NULLIF(spend, 0)) * 100) AS avg_roi,
+        AVG(series_profit_row) AS avg_series_profit,
+        AVG(series_roi_row) AS avg_series_roi
+    FROM base
     GROUP BY Genre, Genre_Subgenre, Territory
     """
 
@@ -151,8 +182,27 @@ def calc(df):
     pb_rev = df["paperback_revenue"] if isinstance(df, dict) else df["paperback_revenue"].sum()
     kenp_rev = df["kenp_revenue"] if isinstance(df, dict) else df["kenp_revenue"].sum()
 
+    # series_profit comes from SQL (NULL for non-Book-1 rows). Sum ignores NaN.
+    if isinstance(df, dict):
+        series_profit = df.get("series_profit")
+    else:
+        series_profit = df["series_profit"].sum(min_count=1) if "series_profit" in df.columns else None
+
     revenue = ebook_rev + pb_rev + kenp_rev
     pub_rev = revenue * 0.5
+
+# series_roi only meaningful when we have a series_profit and spend
+    if series_profit is not None and pd.notna(series_profit) and spend > 0:
+        series_roi = (series_profit / spend) * 100
+        # Series-adjusted revenue = revenue × multiplier.
+        # We don't have the multiplier here, but we can recover it:
+        #   series_profit = revenue * multiplier - spend
+        #   → revenue * multiplier = series_profit + spend
+        series_revenue = series_profit + spend
+        series_ad_pct = (spend / series_revenue * 100) if series_revenue > 0 else None
+    else:
+        series_roi = None
+        series_ad_pct = None
 
     return {
         "spend": spend,
@@ -174,6 +224,11 @@ def calc(df):
         "profit": pub_rev - spend,
         "ad_pct": (spend / revenue * 100) if revenue > 0 else 0,
         "roi": ((pub_rev - spend) / spend * 100) if spend > 0 else 0,
+
+        # Series metrics (None for non-Book-1 books)
+        "series_profit": series_profit if (series_profit is not None and pd.notna(series_profit)) else None,
+        "series_roi": series_roi,
+        "series_ad_pct": series_ad_pct,
     }
 
 def fc(val, s="£"):
@@ -221,10 +276,17 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
     n_terr = len(territories)
     
     # Layout
+    # Layout
     row_h = 0.38
     header_h = 1.6
-    metrics_section = 10  # metric rows
-    bench_section = 10  # benchmark comparison rows
+    # Detect series rows now so we can size the figure correctly
+    _has_series_for_layout = any(
+        d.get("series_profit") is not None
+        for d in list(yesterday.values()) + list(run_totals.values())
+    )
+    series_extra = 2 if _has_series_for_layout else 0
+    metrics_section = 11 + series_extra  # metric rows (Spend...ROI = 11, +2 series)
+    bench_section = 7 + series_extra     # benchmark rows (CPC...ROI = 7, +2 series)
     total_rows = metrics_section + bench_section + 4  # +4 for section headers + recommendation
     fig_h = header_h + (total_rows * row_h) + 1.5
     terr_w = 4.8
@@ -299,6 +361,15 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
         ax.text(tx, y_start + 0.25, terr,
                 fontsize=11, fontweight="bold", color="white",
                 ha="center", va="center", fontfamily="sans-serif")
+        
+    # Detect if this book has series metrics (i.e., it's Book 1 of a series)
+    has_series = any(
+        d.get("series_profit") is not None
+        for d in list(yesterday.values()) + list(run_totals.values())
+    )
+
+    # ── SECTION 1: Campaign Metrics ──
+    y = y_start - 0.65
 
     # ── SECTION 1: Campaign Metrics ──
     y = y_start - 0.65
@@ -319,7 +390,11 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
         ("Publisher Rev", "pub_rev", fc, False),
         ("Gross Profit", "profit", fc, False),
         ("ROI", "roi", fp0, False),
+        ("Series Profit", "series_profit", fc, False),
+        ("Series ROI", "series_roi", fp0, False),
     ]
+    if not has_series:
+        metric_rows = [r for r in metric_rows if r[1] not in ("series_profit", "series_roi")]
 
     for idx, (label, key, fmt, lower_better) in enumerate(metric_rows):
         row_color = C["row_alt"] if idx % 2 == 0 else C["card"]
@@ -336,32 +411,40 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
             y_data = yesterday.get(terr, {})
             r_data = run_totals.get(terr, {})
 
-            # Yesterday value
-            y_val = y_data.get(key, 0)
             y_x = label_w + (i * terr_w) + (terr_w / 4)
-
-            val_color = C["text_dark"]
-            if key == "profit":
-                val_color = C["positive"] if y_val >= 0 else C["negative"]
-            elif key == "roi":
-                val_color = C["positive"] if y_val > 0 else C["negative"]   
-            ax.text(y_x, y + 0.04, fmt(y_val),
-                    fontsize=10, fontweight="bold", color=val_color,
-                    ha="center", va="center", fontfamily="sans-serif")
-
-            # Run total value
-            r_val = r_data.get(key, 0)
             r_x = label_w + (i * terr_w) + (3 * terr_w / 4)
 
-            r_color = C["text_dark"]
-            if key == "profit":
-                r_color = C["positive"] if r_val >= 0 else C["negative"]
-            elif key == "roi":
-                r_color = C["positive"] if r_val > 0 else C["negative"]
+            # Yesterday value
+            y_val = y_data.get(key)
+            if y_val is None:
+                ax.text(y_x, y + 0.04, "—",
+                        fontsize=10, color=C["text_light"],
+                        ha="center", va="center", fontfamily="sans-serif")
+            else:
+                val_color = C["text_dark"]
+                if key in ("profit", "series_profit"):
+                    val_color = C["positive"] if y_val >= 0 else C["negative"]
+                elif key in ("roi", "series_roi"):
+                    val_color = C["positive"] if y_val > 0 else C["negative"]
+                ax.text(y_x, y + 0.04, fmt(y_val),
+                        fontsize=10, fontweight="bold", color=val_color,
+                        ha="center", va="center", fontfamily="sans-serif")
 
-            ax.text(r_x, y + 0.04, fmt(r_val),
-                    fontsize=10, fontweight="bold", color=r_color,
-                    ha="center", va="center", fontfamily="sans-serif")
+            # Run total value
+            r_val = r_data.get(key)
+            if r_val is None:
+                ax.text(r_x, y + 0.04, "—",
+                        fontsize=10, color=C["text_light"],
+                        ha="center", va="center", fontfamily="sans-serif")
+            else:
+                r_color = C["text_dark"]
+                if key in ("profit", "series_profit"):
+                    r_color = C["positive"] if r_val >= 0 else C["negative"]
+                elif key in ("roi", "series_roi"):
+                    r_color = C["positive"] if r_val > 0 else C["negative"]
+                ax.text(r_x, y + 0.04, fmt(r_val),
+                        fontsize=10, fontweight="bold", color=r_color,
+                        ha="center", va="center", fontfamily="sans-serif")
 
         y -= row_h
 
@@ -379,8 +462,13 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
         ("Daily KENP Revenue", "kenp_revenue", "avg_kenp_revenue", fc, False),
         ("Daily Revenue", "revenue", "avg_revenue", fc, False),
         ("Daily Spend", "spend", "avg_spend", fc, True),
-        ("ROI", "roi", "avg_roi", fp0, True)
+        ("ROI", "roi", "avg_roi", fp0, True),
+        ("Series Profit", "series_profit", "avg_series_profit", fc, False),
+        ("Series ROI", "series_roi", "avg_series_roi", fp0, False),
+
     ]
+    if not has_series:
+        bench_rows = [r for r in bench_rows if r[1] not in ("series_profit", "series_roi")]
 
     for idx, (label, book_key, bench_key, fmt, lower_better) in enumerate(bench_rows):
         row_color = C["row_alt"] if idx % 2 == 0 else C["card"]
@@ -407,10 +495,19 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
 
             run_days = y_data.get("run_days", 1)
 
-            book_val = y_data.get(book_key, 0)
-            if book_key not in ["cpc", "ctr", "roi"] and run_days > 0:
-                book_val = book_val / run_days
+            book_val = y_data.get(book_key)
             bench_val = b_data.get(bench_key, 0)
+
+            # Skip series rows for non-Book-1 books (book_val will be None)
+            if book_val is None:
+                y_x = label_w + (i * terr_w) + (terr_w / 4)
+                ax.text(y_x, y + 0.04, "—",
+                        fontsize=10, color=C["text_light"],
+                        ha="center", va="center", fontfamily="sans-serif")
+                continue
+
+            if book_key not in ["cpc", "ctr", "roi", "series_roi"] and run_days > 0:
+                book_val = book_val / run_days
             sig = signal(book_val, bench_val, lower_better)
 
             # Book value vs benchmark
@@ -450,10 +547,20 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
     if len(active_territories) == 2:
         gb_y = yesterday.get("GB", {})
         us_y = yesterday.get("US", {})
-        gb_profit = gb_y.get("profit", 0)
-        us_profit = us_y.get("profit", 0)
-        gb_ad_pct = gb_y.get("ad_pct", 999)
-        us_ad_pct = us_y.get("ad_pct", 999)
+
+        # For Book 1 of a series, use series-adjusted profit/ad_pct
+        # (factors in readthrough). Otherwise use plain gross profit.
+        if has_series:
+            gb_profit = gb_y.get("series_profit") or 0
+            us_profit = us_y.get("series_profit") or 0
+            gb_ad_pct = gb_y.get("series_ad_pct") or 999
+            us_ad_pct = us_y.get("series_ad_pct") or 999
+        else:
+            gb_profit = gb_y.get("profit", 0)
+            us_profit = us_y.get("profit", 0)
+            gb_ad_pct = gb_y.get("ad_pct", 999)
+            us_ad_pct = us_y.get("ad_pct", 999)
+
 
         if gb_profit > 0 and us_profit < 0:
             recs.append("GB is profitable, US is losing money → Consider shifting US budget to GB")
@@ -477,7 +584,11 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
     elif len(active_territories) == 1:
         terr = active_territories[0]
         y_data = yesterday.get(terr, {})
-        if y_data.get("profit", 0) > 0:
+        # Use series profit if available (Book 1 of a series), else gross profit
+        prof = y_data.get("series_profit") if has_series else y_data.get("profit", 0)
+        if prof is None:
+            prof = y_data.get("profit", 0)
+        if prof > 0:
             recs.append(f"Profitable in {terr}! Consider expanding to {'US' if terr == 'GB' else 'GB'}")
         else:
             recs.append(f"Losing money in {terr} → Review spend or pause if trend continues")
