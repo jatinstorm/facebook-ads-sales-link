@@ -73,7 +73,12 @@ def fetch_data(date=None):
         SUM(a.kenp_revenue) AS kenp_revenue,
         SUM(
           CASE WHEN a.Series_No = 1 THEN
-            (a.ebook_revenue + a.paperback_revenue + a.kenp_revenue) * m.series_multiplier - a.spend
+            (
+              (a.ebook_units * COALESCE(m.ebook_value_per_unit, 0))
+              + (a.paperback_units * COALESCE(m.pod_value_per_unit, 0))
+              + (a.kenp * COALESCE(m.kenp_value_per_unit, 0))
+            ) * 0.5
+            - a.spend
           END
         ) AS series_profit
     FROM `marketing-489109.facebook_ads.ads_sales_analytics` a
@@ -113,7 +118,12 @@ def fetch_data(date=None):
         SUM(a.kenp_revenue) AS kenp_revenue,
         SUM(
           CASE WHEN a.Series_No = 1 THEN
-            (a.ebook_revenue + a.paperback_revenue + a.kenp_revenue) * m.series_multiplier - a.spend
+            (
+            (a.ebook_units * COALESCE(m.ebook_value_per_unit, 0))
+            + (a.paperback_units * COALESCE(m.pod_value_per_unit, 0))
+            + (a.kenp * COALESCE(m.kenp_value_per_unit, 0))
+            ) * 0.5
+            - a.spend
           END
         ) AS series_profit
     FROM `marketing-489109.facebook_ads.ads_sales_analytics` a
@@ -133,10 +143,22 @@ def fetch_data(date=None):
       SELECT
         a.*,
         CASE WHEN a.Series_No = 1 THEN
-          (a.ebook_revenue + a.paperback_revenue + a.kenp_revenue) * m.series_multiplier - a.spend
+        (
+            (a.ebook_units * COALESCE(m.ebook_value_per_unit, 0))
+            + (a.paperback_units * COALESCE(m.pod_value_per_unit, 0))
+            + (a.kenp * COALESCE(m.kenp_value_per_unit, 0))
+        ) * 0.5
+        - a.spend
         END AS series_profit_row,
         CASE WHEN a.Series_No = 1 AND a.spend > 0 THEN
-          ((a.ebook_revenue + a.paperback_revenue + a.kenp_revenue) * m.series_multiplier - a.spend) / a.spend * 100
+        (
+            (
+            (a.ebook_units * COALESCE(m.ebook_value_per_unit, 0))
+            + (a.paperback_units * COALESCE(m.pod_value_per_unit, 0))
+            + (a.kenp * COALESCE(m.kenp_value_per_unit, 0))
+            ) * 0.5
+            - a.spend
+        ) / a.spend * 100
         END AS series_roi_row
       FROM `marketing-489109.facebook_ads.ads_sales_analytics` a
       LEFT JOIN `marketing-489109.facebook_ads.series_multipliers` m
@@ -156,9 +178,8 @@ def fetch_data(date=None):
         AVG(ebook_revenue) AS avg_ebook_revenue,
         AVG(paperback_revenue) AS avg_paperback_revenue,
         AVG(ebook_revenue + paperback_revenue + kenp_revenue) AS avg_revenue,
-        AVG(SAFE_DIVIDE((ebook_revenue + paperback_revenue + kenp_revenue) * 0.5 - spend, NULLIF(spend, 0)) * 100) AS avg_roi,
         AVG(series_profit_row) AS avg_series_profit,
-        AVG(series_roi_row) AS avg_series_roi
+        SAFE_DIVIDE(SUM(series_profit_row), SUM(spend)) * 100 AS avg_series_roi,
     FROM base
     GROUP BY Genre, Genre_Subgenre, Territory
     """
