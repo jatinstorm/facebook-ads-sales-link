@@ -555,6 +555,52 @@ def run_pipeline():
     json_blob.upload_from_filename('series_projection_data.json')
     print("  Done! Dashboard live at https://storage.googleapis.com/storm-series-dashboard/index.html")
 
+
+    # ── Write series multipliers to BigQuery ──
+    print("\n  Writing series multipliers to BigQuery...")
+    from pandas_gbq import to_gbq
+
+    mult_rows = []
+    for territory in ['GB', 'US']:
+        terr_data = output.get(territory, {})
+
+        overall_map = {
+            s.get('series'): s.get('roi_multiplier')
+            for s in terr_data.get('overall', {}).get('series_roi', [])
+        }
+        ebook_map = {
+            s.get('series'): s.get('channel_roi_multiplier')
+            for s in terr_data.get('alc_ebook', {}).get('series_roi', [])
+        }
+        kenp_map = {
+            s.get('series'): s.get('channel_roi_multiplier')
+            for s in terr_data.get('kenp', {}).get('series_roi', [])
+        }
+        pod_map = {
+            s.get('series'): s.get('channel_roi_multiplier')
+            for s in terr_data.get('pod', {}).get('series_roi', [])
+        }
+
+        all_series = set(overall_map) | set(ebook_map) | set(kenp_map) | set(pod_map)
+        for series_name in all_series:
+            mult_rows.append({
+                'Series': series_name,
+                'Territory': territory,
+                'series_multiplier': overall_map.get(series_name),
+                'series_multiplier_ebook': ebook_map.get(series_name),
+                'series_multiplier_kenp': kenp_map.get(series_name),
+                'series_multiplier_pod': pod_map.get(series_name),
+            })
+
+    mult_df = pd.DataFrame(mult_rows)
+    to_gbq(
+        mult_df,
+        'facebook_ads.series_multipliers',
+        project_id='marketing-489109',
+        if_exists='replace'
+    )
+    print(f"  Wrote {len(mult_df)} multiplier rows.")
+
     return output
 
 
