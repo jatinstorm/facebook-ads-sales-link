@@ -549,6 +549,10 @@ def run_pipeline():
     blob = bucket.blob('index.html')
     blob.content_type = 'text/html'
     blob.upload_from_filename('index.html')
+
+    json_blob = bucket.blob('series_projection_data.json')
+    json_blob.content_type = 'application/json'
+    json_blob.upload_from_filename('series_projection_data.json')
     print("  Done! Dashboard live at https://storage.googleapis.com/storm-series-dashboard/index.html")
 
     return output
