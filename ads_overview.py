@@ -21,9 +21,9 @@ from bq import get_client
 
 
 SERIES_PROFIT_EXPR = """
-  CASE WHEN a.Series_No = 1 THEN
+  CASE WHEN a.Series_No = 1 AND m.ebook_value_per_unit IS NOT NULL THEN
     (
-      (a.ebook_units * COALESCE(m.ebook_value_per_unit, 0))
+      (a.ebook_units * m.ebook_value_per_unit)
       + (a.paperback_units * COALESCE(m.pod_value_per_unit, 0))
       + (a.kenp * COALESCE(m.kenp_value_per_unit, 0))
     ) * 0.5
