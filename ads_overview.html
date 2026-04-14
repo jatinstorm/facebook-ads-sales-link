@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ads Overview Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --t1: #1a1a1a; --t2: #6b7280; --t3: #9ca3af;
+    --bg0: #f7f7f8; --bg1: #ffffff; --bg2: #f3f4f6; --b1: #e5e7eb;
+    --pos: #10b981; --neg: #ef4444; --neu: #6b7280;
+    --pos-bg: #ecfdf5; --neg-bg: #fef2f2;
+    --accent: #6366f1; --accent-bg: #eef2ff;
+    --series: #8b5cf6; --series-bg: #f5f3ff;
+    --radius: 10px; --radius-lg: 14px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --t1: #f0f0f0; --t2: #9ca3af; --t3: #6b7280;
+      --bg0: #111113; --bg1: #1a1a1e; --bg2: #242428; --b1: #333338;
+      --pos-bg: #022c22; --neg-bg: #450a0a;
+      --accent-bg: #1e1b4b; --series-bg: #2e1065;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+      --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
+    }
+  }
+  body {
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg0); color: var(--t1); padding: 24px 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "DM Mono", monospace; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  h2 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 12px; }
+  h3 { font-size: 11px; font-weight: 500; color: var(--t3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  .subtitle { color: var(--t2); font-size: 13px; margin-top: 4px; }
+
+  /* ── Header ── */
+  .page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
+  .gen-info { font-size: 11px; color: var(--t3); text-align: right; }
+
+  /* ── Month summary strip ── */
+  .summary-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px;
+  }
+  .sum-card {
+    background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius);
+    padding: 18px 20px; box-shadow: var(--shadow-sm);
+    border-left: 3px solid var(--accent);
+  }
+  .sum-card.series { border-left-color: var(--series); }
+  .sum-card.profit { border-left-color: var(--pos); }
+  .sum-card.profit.neg { border-left-color: var(--neg); }
+  .sum-label { font-size: 10px; color: var(--t3); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; display: block; }
+  .sum-val { font-size: 26px; font-weight: 600; display: block; margin-top: 4px; letter-spacing: -0.02em; }
+  .sum-sub { font-size: 11px; color: var(--t3); display: block; margin-top: 4px; }
+  .sum-val.pos { color: var(--pos); }
+  .sum-val.neg { color: var(--neg); }
+
+  /* ── Section wrapper ── */
+  .section { margin-bottom: 28px; }
+  .section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .hint { font-size: 12px; color: var(--t3); }
+
+  /* ── Tables ── */
+  .table-wrap { background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 12px; font-size: 10px; color: var(--t3); font-weight: 500; border-bottom: 1px solid var(--b1); text-transform: uppercase; letter-spacing: 0.04em; background: var(--bg2); white-space: nowrap; }
+  th.r { text-align: right; }
+  td { padding: 11px 12px; vertical-align: middle; font-size: 13px; color: var(--t1); border-bottom: 1px solid var(--b1); }
+  td.r { text-align: right; }
+  td.mono { font-family: "DM Mono", monospace; font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg2); }
+  .title-cell { font-weight: 500; }
+  .title-sub { font-size: 11px; color: var(--t3); }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px;
+    border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .badge.gb { background: #fee2e2; color: #991b1b; }
+  .badge.us { background: #dbeafe; color: #1e40af; }
+  .badge.series { background: var(--series-bg); color: var(--series); }
+  @media (prefers-color-scheme: dark) {
+    .badge.gb { background: #7f1d1d; color: #fecaca; }
+    .badge.us { background: #1e3a8a; color: #bfdbfe; }
+  }
+
+  /* ── Values ── */
+  .pos { color: var(--pos); }
+  .neg { color: var(--neg); }
+  .mute { color: var(--t3); }
+
+  /* ── Two-column layout ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* ── Genre grid ── */
+  .genre-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .genre-card {
+    background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius);
+    padding: 14px 16px; box-shadow: var(--shadow-sm);
+  }
+  .genre-name { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .genre-meta { font-size: 11px; color: var(--t3); margin-bottom: 8px; }
+  .genre-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px; }
+  .genre-row .k { color: var(--t3); }
+
+  /* ── History cards ── */
+  .history-card {
+    background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius-lg);
+    margin-bottom: 10px; box-shadow: var(--shadow-sm); overflow: hidden;
+  }
+  .history-head {
+    padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    transition: background 0.15s;
+  }
+  .history-head:hover { background: var(--bg2); }
+  .history-title { font-size: 15px; font-weight: 600; }
+  .history-stats { display: flex; gap: 20px; font-size: 12px; }
+  .history-stats .stat { display: flex; flex-direction: column; text-align: right; }
+  .history-stats .stat .k { font-size: 10px; color: var(--t3); text-transform: uppercase; letter-spacing: 0.04em; }
+  .history-stats .stat .v { font-weight: 600; }
+  .history-body { display: none; padding: 0 18px 14px; border-top: 1px solid var(--b1); }
+  .history-card.open .history-body { display: block; }
+  .chevron { font-size: 12px; color: var(--t3); transition: transform 0.2s; }
+  .history-card.open .chevron { transform: rotate(90deg); }
+
+  /* ── Filters ── */
+  .filters { display: flex; gap: 8px; margin-bottom: 16px; }
+  .filter-group { display: inline-flex; border: 1px solid var(--b1); border-radius: 8px; overflow: hidden; background: var(--bg1); box-shadow: var(--shadow-sm); }
+  .ftab {
+    font-size: 12px; padding: 7px 14px; border: none; background: transparent;
+    color: var(--t2); cursor: pointer; font-weight: 500; border-right: 1px solid var(--b1);
+    font-family: inherit; transition: all 0.15s;
+  }
+  .ftab:last-child { border-right: none; }
+  .ftab:hover { background: var(--bg2); }
+  .ftab.active { background: var(--t1); color: var(--bg1); }
+
+  .loading { text-align: center; padding: 60px 0; color: var(--t2); font-size: 14px; }
+
+  @media (max-width: 700px) { .summary-strip { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="container" id="app"><div class="loading">Loading…</div></div>
+
+<script src="ads_overview_data.js" onerror="console.log('No .js file found')"></script>
+
+<script>
+const app = document.getElementById("app");
+let DATA_OBJ = null;
+let state = { territory: "All" };
+
+// ── Helpers ──
+function fmtGBP(n) {
+  if (n == null) return "—";
+  if (Math.abs(n) >= 1e6) return "£" + (n/1e6).toFixed(1) + "M";
+  if (Math.abs(n) >= 1e3) return "£" + Math.round(n).toLocaleString();
+  return "£" + n.toFixed(2);
+}
+function fmtPct(n) {
+  if (n == null) return "—";
+  return n.toFixed(0) + "%";
+}
+function fmtInt(n) {
+  if (n == null) return "—";
+  return Math.round(n).toLocaleString();
+}
+function signClass(n) {
+  if (n == null) return "mute";
+  if (n > 0) return "pos";
+  if (n < 0) return "neg";
+  return "mute";
+}
+function territoryBadge(t) {
+  const cls = t === "GB" ? "gb" : "us";
+  return `<span class="badge ${cls}">${t}</span>`;
+}
+function filterByTerritory(rows) {
+  if (state.territory === "All") return rows;
+  return rows.filter(r => r.territory === state.territory);
+}
+function esc(s) {
+  if (s == null) return "";
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+// ── Renderers ──
+function renderSummaryStrip(sum) {
+  const gp = sum.gross_profit || 0;
+  const sp = sum.series_profit;
+  return `
+    <div class="summary-strip">
+      <div class="sum-card">
+        <span class="sum-label">Month Spend</span>
+        <span class="sum-val">${fmtGBP(sum.spend)}</span>
+        <span class="sum-sub">${sum.campaigns} campaigns</span>
+      </div>
+      <div class="sum-card">
+        <span class="sum-label">Month Revenue</span>
+        <span class="sum-val">${fmtGBP(sum.revenue)}</span>
+        <span class="sum-sub">Pub share: ${fmtGBP(sum.pub_revenue)}</span>
+      </div>
+      <div class="sum-card profit ${gp < 0 ? 'neg' : ''}">
+        <span class="sum-label">Gross Profit</span>
+        <span class="sum-val ${signClass(gp)}">${fmtGBP(gp)}</span>
+        <span class="sum-sub">ROI: <span class="${signClass(sum.gross_roi)}">${fmtPct(sum.gross_roi)}</span></span>
+      </div>
+      <div class="sum-card series">
+        <span class="sum-label">Series Profit (B1)</span>
+        <span class="sum-val ${signClass(sp)}">${fmtGBP(sp)}</span>
+        <span class="sum-sub">ROI: <span class="${signClass(sum.series_roi)}">${fmtPct(sum.series_roi)}</span> · ${sum.series_campaigns || 0} B1 campaigns</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderCampaignRow(r, showRun) {
+  const seriesTag = r.series ? `<div class="title-sub">${esc(r.series)} · Book ${r.series_no || "?"}</div>` : `<div class="title-sub mute">Standalone</div>`;
+  const runCell = showRun ? `<td class="r mono">${r.run_days}d</td>` : "";
+  return `
+    <tr>
+      <td>${territoryBadge(r.territory)}</td>
+      <td class="title-cell">
+        ${esc(r.title)}
+        ${seriesTag}
+      </td>
+      <td><span class="badge">${esc(r.genre || "—")}</span></td>
+      ${runCell}
+      <td class="r mono">${fmtGBP(r.spend)}</td>
+      <td class="r mono">${fmtGBP(r.revenue)}</td>
+      <td class="r mono ${signClass(r.gross_roi)}">${fmtPct(r.gross_roi)}</td>
+      <td class="r mono ${signClass(r.series_roi)}">${r.series_roi != null ? fmtPct(r.series_roi) : "—"}</td>
+    </tr>
+  `;
+}
+
+function renderCampaignTable(rows, showRun = false) {
+  if (!rows.length) return `<div class="table-wrap"><div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">No campaigns to show</div></div>`;
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Terr</th>
+            <th>Campaign</th>
+            <th>Genre</th>
+            ${showRun ? '<th class="r">Days</th>' : ''}
+            <th class="r">Spend</th>
+            <th class="r">Revenue</th>
+            <th class="r">Gross ROI</th>
+            <th class="r">Series ROI</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => renderCampaignRow(r, showRun)).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderGenreBreakdown(genres) {
+  if (!genres.length) return "";
+  return `
+    <div class="genre-grid">
+      ${genres.map(g => `
+        <div class="genre-card">
+          <div class="genre-name">${esc(g.genre)}</div>
+          <div class="genre-meta">${g.campaigns} campaigns</div>
+          <div class="genre-row"><span class="k">Spend</span><span class="mono">${fmtGBP(g.spend)}</span></div>
+          <div class="genre-row"><span class="k">Revenue</span><span class="mono">${fmtGBP(g.revenue)}</span></div>
+          <div class="genre-row"><span class="k">Gross ROI</span><span class="mono ${signClass(g.gross_roi)}">${fmtPct(g.gross_roi)}</span></div>
+          <div class="genre-row"><span class="k">Series ROI</span><span class="mono ${signClass(g.series_roi)}">${g.series_roi != null ? fmtPct(g.series_roi) : "—"}</span></div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderHistory(history) {
+  if (!history.length) return "";
+  return history.map((h, idx) => `
+    <div class="history-card" data-idx="${idx}">
+      <div class="history-head">
+        <div>
+          <span class="chevron">▶</span>
+          <span class="history-title" style="margin-left:8px">${esc(h.label)}</span>
+        </div>
+        <div class="history-stats">
+          <div class="stat"><span class="k">Spend</span><span class="v mono">${fmtGBP(h.spend)}</span></div>
+          <div class="stat"><span class="k">Gross ROI</span><span class="v mono ${signClass(h.gross_roi)}">${fmtPct(h.gross_roi)}</span></div>
+          <div class="stat"><span class="k">Series ROI</span><span class="v mono ${signClass(h.series_roi)}">${h.series_roi != null ? fmtPct(h.series_roi) : "—"}</span></div>
+          <div class="stat"><span class="k">Campaigns</span><span class="v mono">${h.campaigns}</span></div>
+        </div>
+      </div>
+      <div class="history-body">
+        <h3 style="margin-top:14px">Top 5 campaigns</h3>
+        ${renderCampaignTable(h.top_campaigns || [])}
+      </div>
+    </div>
+  `).join("");
+}
+
+function render() {
+  if (!DATA_OBJ) return;
+  const d = DATA_OBJ;
+
+  const running = filterByTerritory(d.running || []);
+  const topSeries = filterByTerritory(d.month_top_series_roi || []);
+  const topGross = filterByTerritory(d.month_top_gross_roi || []);
+
+  app.innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1>Ads Overview</h1>
+        <div class="subtitle">${esc(d.month_label)} · Latest data: ${esc(d.latest_date || "—")}</div>
+      </div>
+      <div class="gen-info">
+        Generated ${esc(String(d.generated_at || "").slice(0, 16).replace("T", " "))}
+      </div>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <button class="ftab ${state.territory === 'All' ? 'active' : ''}" data-t="All">All</button>
+        <button class="ftab ${state.territory === 'GB' ? 'active' : ''}" data-t="GB">GB</button>
+        <button class="ftab ${state.territory === 'US' ? 'active' : ''}" data-t="US">US</button>
+      </div>
+    </div>
+
+    ${renderSummaryStrip(d.month_summary || {})}
+
+    <div class="section">
+      <div class="section-head">
+        <h2>Currently Running Campaigns</h2>
+        <span class="hint">Active on ${esc(d.latest_date || "latest day")} · Book 1s ranked by Series ROI</span>
+      </div>
+      ${renderCampaignTable(running, true)}
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>${esc(d.month_label)} — Top Campaigns</h2>
+        <span class="hint">Best performers this calendar month</span>
+      </div>
+      <div class="two-col">
+        <div>
+          <h3>Top 10 by Series ROI (Book 1s)</h3>
+          ${renderCampaignTable(topSeries)}
+        </div>
+        <div>
+          <h3>Top 10 by Gross ROI</h3>
+          ${renderCampaignTable(topGross)}
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>${esc(d.month_label)} — By Genre</h2>
+        <span class="hint">Spend and ROI per genre this month</span>
+      </div>
+      ${renderGenreBreakdown(d.month_by_genre || [])}
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>Monthly History</h2>
+        <span class="hint">Click a month to see top campaigns</span>
+      </div>
+      ${renderHistory(d.history || [])}
+    </div>
+  `;
+
+  // Filter wire-up
+  document.querySelectorAll(".ftab[data-t]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.territory = btn.dataset.t;
+      render();
+    });
+  });
+
+  // History expand/collapse
+  document.querySelectorAll(".history-card .history-head").forEach(head => {
+    head.addEventListener("click", () => {
+      head.parentElement.classList.toggle("open");
+    });
+  });
+}
+
+async function init() {
+  try {
+    const resp = await fetch("ads_overview_data.json");
+    if (resp.ok) { DATA_OBJ = await resp.json(); render(); return; }
+  } catch (e) { console.error("fetch error", e); }
+  if (typeof DATA !== "undefined") { DATA_OBJ = DATA; render(); return; }
+  app.innerHTML = '<div class="loading" style="color:#ef4444">Could not load data.</div>';
+}
+
+init();
+</script>
+</body>
+</html>

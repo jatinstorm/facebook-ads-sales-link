@@ -183,6 +183,21 @@ def dashboard():
         return html, 200, {'Content-Type': 'text/html'}
     except Exception as e:
         return f"Dashboard not available: {e}", 500
+    
+
+@app.route("/ads-overview", methods=["POST"])
+def ads_overview():
+    """Regenerate ads overview dashboard and upload to GCS."""
+    try:
+        from ads_overview import run_pipeline
+        
+        print("Starting ads overview pipeline...")
+        run_pipeline()
+        
+        return jsonify({"status": "success", "url": "https://storage.googleapis.com/storm-series-dashboard/ads_overview.html"}), 200
+    except Exception as e:
+        print(f"Ads overview failed:\n{traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 
