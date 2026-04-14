@@ -215,12 +215,11 @@ def calc(df):
 # series_roi only meaningful when we have a series_profit and spend
     if series_profit is not None and pd.notna(series_profit) and spend > 0:
         series_roi = (series_profit / spend) * 100
-        # Series-adjusted revenue = revenue × multiplier.
-        # We don't have the multiplier here, but we can recover it:
-        #   series_profit = revenue * multiplier - spend
-        #   → revenue * multiplier = series_profit + spend
-        series_revenue = series_profit + spend
-        series_ad_pct = (spend / series_revenue * 100) if series_revenue > 0 else None
+        # Reconstruct gross series revenue from profit:
+        #   series_profit = gross_series_rev * 0.5 - spend
+        #   → gross_series_rev = (series_profit + spend) / 0.5
+        series_revenue_gross = (series_profit + spend) / 0.5
+        series_ad_pct = (spend / series_revenue_gross * 100) if series_revenue_gross > 0 else None
     else:
         series_roi = None
         series_ad_pct = None
@@ -484,8 +483,8 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
         ("Daily Revenue", "revenue", "avg_revenue", fc, False),
         ("Daily Spend", "spend", "avg_spend", fc, True),
         ("ROI", "roi", "avg_roi", fp0, True),
-        ("Series Profit", "series_profit", "avg_series_profit", fc, False),
-        ("Series ROI", "series_roi", "avg_series_roi", fp0, False),
+        ("Series Profit", "series_profit", None, fc, False),
+        ("Series ROI", "series_roi", None, fp0, False),
 
     ]
     if not has_series:
@@ -529,11 +528,22 @@ def generate_book_genre_card(title, edition_id, genre, subgenre,
 
             if book_key not in ["cpc", "ctr", "roi", "series_roi"] and run_days > 0:
                 book_val = book_val / run_days
-            sig = signal(book_val, bench_val, lower_better)
 
             # Book value vs benchmark
             y_x = label_w + (i * terr_w) + (terr_w / 4)
             r_x = label_w + (i * terr_w) + (3 * terr_w / 4)
+
+            if bench_key is None:
+                # No benchmark comparison for this row — just show the book value
+                ax.text(y_x, y + 0.04, fmt(book_val),
+                        fontsize=10, fontweight="bold", color=C["text_dark"],
+                        ha="center", va="center", fontfamily="sans-serif")
+                ax.text(r_x, y + 0.04, "—",
+                        fontsize=9, color=C["text_light"],
+                        ha="center", va="center", fontfamily="sans-serif")
+                continue
+
+            sig = signal(book_val, bench_val, lower_better)
 
             # Colored dot indicator
             dot_color = C["positive"] if sig == "[+]" else C["negative"] if sig == "[-]" else C["text_light"]

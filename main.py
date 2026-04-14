@@ -104,8 +104,11 @@ def run_pipeline():
     final["sale_date"] = pd.to_datetime(final["sale_date"], errors="coerce")
 
     for col in final.select_dtypes(include=["object"]).columns:
+        if col == "Series":
+            continue
         final[col] = final[col].astype(str)
 
+        
     # 11. Keep only schema columns
     final = final[
         [
@@ -114,7 +117,7 @@ def run_pipeline():
             "cpc", "ctr", "impressions", "ASIN", "adset_name", "Title",
             "paperback_isbn", "ebook_units", "paperback_units", "kenp",
             "ebook_revenue", "paperback_revenue", "Genre", "Genre_Subgenre",
-            "kenp_revenue"
+            "kenp_revenue","Series", "Series_No"
         ]
     ]
 
@@ -132,9 +135,29 @@ def run_pipeline():
         if_exists="append"
     )
 
+    print("Running series metadata repair...")
+    client.query("""
+    MERGE `marketing-489109.facebook_ads.ads_sales_analytics` a
+    USING (
+      SELECT
+        e.ID AS Edition_ID,
+        MIN(e.Series) AS Series,
+        MIN(SAFE_CAST(REGEXP_EXTRACT(e.Series_No, r'(\\d+)') AS INT64)) AS Series_No
+      FROM `storm-pub-amazon-sales.airtable.awe_editions` e
+      GROUP BY e.ID
+    ) ed
+    ON a.Edition_ID = ed.Edition_ID
+    WHEN MATCHED AND (a.Series IS NULL OR a.Series_No IS NULL) THEN UPDATE SET
+      Series = ed.Series,
+      Series_No = ed.Series_No
+    """).result()
+    print("Repair complete.")
+
     row_count = len(final)
     print(f"Pipeline complete: {row_count} rows uploaded.")
     return {"status": "success", "rows": row_count}
+
+    
 
 
 if __name__ == "__main__":
