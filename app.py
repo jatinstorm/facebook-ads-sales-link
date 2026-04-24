@@ -198,6 +198,44 @@ def ads_overview():
     except Exception as e:
         print(f"Ads overview failed:\n{traceback.format_exc()}")
         return jsonify({"status": "error", "message": str(e)}), 500
+    
+
+
+@app.route("/home", methods=["GET"])
+def home():
+    try:
+        from google.cloud import storage as gcs
+        gcs_client = gcs.Client()
+        bucket = gcs_client.bucket('storm-series-dashboard')
+        blob = bucket.blob('home.html')
+        html = blob.download_as_text()
+        return html, 200, {'Content-Type': 'text/html'}
+    except Exception as e:
+        return f"Home not available: {e}", 500
+
+@app.route("/ads", methods=["GET"])
+def ads():
+    try:
+        from google.cloud import storage as gcs
+        gcs_client = gcs.Client()
+        bucket = gcs_client.bucket('storm-series-dashboard')
+        blob = bucket.blob('ads_overview.html')
+        html = blob.download_as_text()
+        return html, 200, {'Content-Type': 'text/html'}
+    except Exception as e:
+        return f"Ads dashboard not available: {e}", 500
+
+@app.route("/series", methods=["GET"])
+def series():
+    try:
+        from google.cloud import storage as gcs
+        gcs_client = gcs.Client()
+        bucket = gcs_client.bucket('storm-series-dashboard')
+        blob = bucket.blob('index.html')
+        html = blob.download_as_text()
+        return html, 200, {'Content-Type': 'text/html'}
+    except Exception as e:
+        return f"Series dashboard not available: {e}", 500
 
 
 

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Storm Publishing — Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Instrument+Sans:wght@400;500;600&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f7f5f0;
+  --surface: #ffffff;
+  --surface2: #f0ede6;
+  --border: rgba(0,0,0,0.07);
+  --border-hover: rgba(0,0,0,0.14);
+  --text: #1a1714;
+  --muted: #8a8578;
+  --faint: #e8e4dc;
+
+  --gold: #b8922a;
+  --gold-light: #c9a84c;
+  --gold-glow: rgba(184,146,42,0.08);
+  --teal: #1a9e94;
+  --teal-glow: rgba(26,158,148,0.07);
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', sans-serif; overflow-x: hidden; }
+
+/* subtle paper texture */
+body::after {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity: 0.25;
+}
+
+/* ambient glow */
+.ambient {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 55% 40% at 10% 15%, rgba(184,146,42,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 45% at 90% 80%, rgba(26,158,148,0.05) 0%, transparent 70%);
+}
+
+.page {
+  position: relative; z-index: 1;
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  padding: 0 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── HEADER ── */
+header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 44px 0 0;
+  opacity: 0; animation: fadeUp 0.8s 0.1s ease forwards;
+}
+
+.logo { display: flex; align-items: center; gap: 14px; }
+
+.logo-mark {
+  width: 36px; height: 36px;
+  border: 1.5px solid var(--gold);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(184,146,42,0.06);
+}
+
+.logo-mark svg { width: 18px; height: 18px; }
+
+.logo-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+.logo-name span { color: var(--gold); }
+
+.header-right {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ── HERO ── */
+.hero {
+  flex: 1;
+  display: flex; flex-direction: column;
+  justify-content: center;
+  padding: 80px 0 40px;
+}
+
+.greeting-line {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+  opacity: 0; animation: fadeUp 0.8s 0.3s ease forwards;
+  display: flex; align-items: center; gap: 12px;
+}
+
+.greeting-line::before {
+  content: '';
+  display: block; width: 32px; height: 1px;
+  background: var(--gold); opacity: 0.5;
+}
+
+.hero-heading {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(52px, 7vw, 86px);
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: 20px;
+  opacity: 0; animation: fadeUp 0.9s 0.4s ease forwards;
+}
+
+.hero-heading em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.hero-sub {
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-bottom: 64px;
+  line-height: 1.6;
+  opacity: 0; animation: fadeUp 0.8s 0.55s ease forwards;
+  max-width: 420px;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  width: 100%; height: 1px;
+  background: linear-gradient(90deg, var(--gold), transparent 60%);
+  margin-bottom: 52px;
+  opacity: 0; animation: fadeUp 0.8s 0.65s ease forwards;
+}
+
+/* ── CARDS ── */
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  opacity: 0; animation: fadeUp 0.9s 0.75s ease forwards;
+}
+
+.card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 36px 36px 30px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  overflow: hidden;
+  transition: border-color 0.35s, transform 0.35s, box-shadow 0.35s;
+}
+
+.card::before {
+  content: '';
+  position: absolute; inset: 0; border-radius: 20px;
+  opacity: 0; transition: opacity 0.35s; pointer-events: none;
+}
+
+.card-ads::before    { background: radial-gradient(ellipse 80% 60% at 20% 20%, var(--gold-glow), transparent); }
+.card-series::before { background: radial-gradient(ellipse 80% 60% at 80% 20%, var(--teal-glow), transparent); }
+
+.card:hover { transform: translateY(-5px); border-color: var(--border-hover); }
+.card:hover::before { opacity: 1; }
+.card-ads:hover    { box-shadow: 0 20px 56px rgba(184,146,42,0.1); }
+.card-series:hover { box-shadow: 0 20px 56px rgba(26,158,148,0.08); }
+
+.card-top {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.card-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.card-ads .card-icon    { background: rgba(184,146,42,0.1); }
+.card-series .card-icon { background: rgba(26,158,148,0.08); }
+.card-icon svg { width: 22px; height: 22px; }
+.card-ads .card-icon svg    { stroke: var(--gold); }
+.card-series .card-icon svg { stroke: var(--teal); }
+
+.card-arrow {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.3s;
+}
+.card:hover .card-arrow { transform: translate(3px, -3px); border-color: var(--border-hover); }
+.card-ads:hover .card-arrow    { background: rgba(184,146,42,0.08); }
+.card-series:hover .card-arrow { background: rgba(26,158,148,0.06); }
+.card-arrow svg { width: 14px; height: 14px; stroke: var(--muted); transition: stroke 0.3s; }
+.card-ads:hover .card-arrow svg    { stroke: var(--gold); }
+.card-series:hover .card-arrow svg { stroke: var(--teal); }
+
+.card-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; margin-bottom: 10px;
+}
+.card-ads .card-label    { color: var(--gold); }
+.card-series .card-label { color: var(--teal); }
+
+.card-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 34px; font-weight: 400; line-height: 1.1;
+  margin-bottom: 12px; color: var(--text);
+}
+
+.card-desc {
+  font-size: 13px; color: var(--muted);
+  line-height: 1.65; margin-bottom: 28px;
+}
+
+.card-footer {
+  display: flex; gap: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+
+.card-stat { display: flex; flex-direction: column; gap: 3px; }
+
+.card-stat-value {
+  font-family: 'DM Mono', monospace;
+  font-size: 17px; font-weight: 400;
+}
+.card-ads .card-stat-value    { color: var(--gold); }
+.card-series .card-stat-value { color: var(--teal); }
+
+.card-stat-label {
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+/* ── FOOTER ── */
+footer {
+  padding: 28px 0 40px;
+  display: flex; justify-content: space-between; align-items: center;
+  border-top: 1px solid var(--border);
+  margin-top: 56px;
+  opacity: 0; animation: fadeUp 0.8s 1s ease forwards;
+}
+
+.footer-left {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--muted); letter-spacing: 0.06em;
+}
+
+.footer-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--teal); position: relative;
+}
+.footer-dot::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%;
+  background: var(--teal); opacity: 0.2;
+  animation: pulse 2.2s infinite;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.2; }
+  50%       { transform: scale(2); opacity: 0; }
+}
+
+@media (max-width: 720px) {
+  .page { padding: 0 20px; }
+  .cards { grid-template-columns: 1fr; }
+  .hero-heading { font-size: 44px; }
+  header { padding: 28px 0 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="ambient"></div>
+
+<div class="page">
+
+  <header>
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M11 2L5 10H9L7 16L13 8H9L11 2Z" fill="#b8922a"/>
+        </svg>
+      </div>
+      <div class="logo-name"><span>Storm</span> Publishing</div>
+    </div>
+    <div class="header-right" id="currentDate">—</div>
+  </header>
+
+  <div class="hero">
+
+    <div class="greeting-line" id="greetingLine">Good morning</div>
+
+    <h1 class="hero-heading">
+      What are you<br>
+      in the mood<br>
+      to <em>explore?</em>
+    </h1>
+
+    <p class="hero-sub">Pick a dashboard and dive in.</p>
+
+    <div class="divider"></div>
+
+    <div class="cards">
+
+      <a class="card card-ads" href="/ads">
+        <div class="card-top">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 17l4-8 4 4 3-5 4 9"/><path d="M3 21h18"/>
+            </svg>
+          </div>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 17L17 7M17 7H7M17 7v10"/>
+            </svg>
+          </div>
+        </div>
+        <div class="card-label">Facebook Ads</div>
+        <div class="card-title">Ads<br>Overview</div>
+        <div class="card-desc">Campaign performance, spend efficiency, CPC &amp; CTR trends, ROI by title and territory.</div>
+        <div class="card-footer">
+          <div class="card-stat">
+            <div class="card-stat-value">Live</div>
+            <div class="card-stat-label">Status</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-value">GB · US</div>
+            <div class="card-stat-label">Territories</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-value">Daily</div>
+            <div class="card-stat-label">Refresh</div>
+          </div>
+        </div>
+      </a>
+
+      <a class="card card-series" href="/series">
+        <div class="card-top">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/><path d="M12 3v9l5 3"/>
+            </svg>
+          </div>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 17L17 7M17 7H7M17 7v10"/>
+            </svg>
+          </div>
+        </div>
+        <div class="card-label">Series Intelligence</div>
+        <div class="card-title">Series<br>Projections</div>
+        <div class="card-desc">Read-through forecasts, series velocity, milestone tracking and revenue projections by title.</div>
+        <div class="card-footer">
+          <div class="card-stat">
+            <div class="card-stat-value">Live</div>
+            <div class="card-stat-label">Status</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-value">30 · 90d</div>
+            <div class="card-stat-label">Horizons</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-value">Daily</div>
+            <div class="card-stat-label">Refresh</div>
+          </div>
+        </div>
+      </a>
+
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-left">Internal use only</div>
+    <div class="footer-dot" title="Systems live"></div>
+  </footer>
+
+</div>
+
+<script>
+  const hour = new Date().getHours();
+  const greetings = {
+    morning:   ['Good morning', 'Morning', 'Rise and shine'],
+    afternoon: ['Good afternoon', 'Afternoon', 'Hope the day\'s going well'],
+    evening:   ['Good evening', 'Evening', 'Winding down?'],
+    night:     ['Still at it?', 'Burning the midnight oil', 'Late night session']
+  };
+  let slot;
+  if      (hour >= 5  && hour < 12) slot = 'morning';
+  else if (hour >= 12 && hour < 17) slot = 'afternoon';
+  else if (hour >= 17 && hour < 21) slot = 'evening';
+  else                               slot = 'night';
+  const opts = greetings[slot];
+  document.getElementById('greetingLine').textContent = opts[Math.floor(Math.random() * opts.length)];
+
+  document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+</script>
+
+</body>
+</html>
