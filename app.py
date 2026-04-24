@@ -189,7 +189,7 @@ def dashboard():
 def ads_overview():
     """Regenerate ads overview dashboard and upload to GCS."""
     try:
-        from ads_overview import run_pipeline
+        from ads_overview_updated import run_pipeline
         
         print("Starting ads overview pipeline...")
         run_pipeline()
