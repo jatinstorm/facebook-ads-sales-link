@@ -4,410 +4,1932 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ads Overview Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --t1: #1a1a1a; --t2: #6b7280; --t3: #9ca3af;
-    --bg0: #f7f7f8; --bg1: #ffffff; --bg2: #f3f4f6; --b1: #e5e7eb;
-    --pos: #10b981; --neg: #ef4444; --neu: #6b7280;
-    --pos-bg: #ecfdf5; --neg-bg: #fef2f2;
-    --accent: #6366f1; --accent-bg: #eef2ff;
-    --series: #8b5cf6; --series-bg: #f5f3ff;
-    --radius: 10px; --radius-lg: 14px;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #151520;
+  --surface-elevated: #1c1c2e;
+  --border: #2a2a40;
+  --text-primary: #e8e8f0;
+  --text-secondary: #9999b5;
+  --text-muted: #666680;
+  
+  --accent: #00d4aa;
+  --accent-dim: #00a88a;
+  --accent-glow: rgba(0, 212, 170, 0.2);
+  
+  --pink: #ff6b9d;
+  --yellow: #ffd93d;
+  --blue: #6c8fff;
+  --red: #ff5757;
+}
+
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  padding: 0;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+.mono { font-family: 'IBM Plex Mono', monospace; }
+
+.header {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-elevated) 100%);
+  padding: 32px 40px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(20px);
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--pink) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.data-info {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Syne', sans-serif;
+  position: relative;
+  transition: all 0.2s;
+  border-radius: 8px 8px 0 0;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tab.active {
+  color: var(--accent);
+  background: rgba(0, 212, 170, 0.1);
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+.container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 32px 40px;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.filters {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'IBM Plex Mono', monospace;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+select:hover {
+  border-color: var(--accent);
+  background: var(--surface-elevated);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px var(--accent-glow);
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--pink) 100%);
+}
+
+.metric-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.metric-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.chart-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.chart-row .chart-card {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.chart-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-card h3::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--pink) 100%);
+  border-radius: 2px;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 350px;
+}
+
+.grouping-options {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 32px;
+  background: var(--surface);
+  padding: 8px;
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.group-btn {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Syne', sans-serif;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.group-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.group-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.outlier-note {
+  font-size: 11px;
+  color: var(--yellow);
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 217, 61, 0.1);
+  border-left: 2px solid var(--yellow);
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 24px 20px;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --t1: #f0f0f0; --t2: #9ca3af; --t3: #6b7280;
-      --bg0: #111113; --bg1: #1a1a1e; --bg2: #242428; --b1: #333338;
-      --pos-bg: #022c22; --neg-bg: #450a0a;
-      --accent-bg: #1e1b4b; --series-bg: #2e1065;
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
-      --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
-    }
+  
+  .container {
+    padding: 24px 20px;
   }
-  body {
-    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: var(--bg0); color: var(--t1); padding: 24px 16px;
-    -webkit-font-smoothing: antialiased;
+  
+  h1 {
+    font-size: 24px;
   }
-  .mono { font-family: "DM Mono", monospace; }
-  .container { max-width: 1200px; margin: 0 auto; }
-  h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
-  h2 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 12px; }
-  h3 { font-size: 11px; font-weight: 500; color: var(--t3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
-  .subtitle { color: var(--t2); font-size: 13px; margin-top: 4px; }
-
-  /* ── Header ── */
-  .page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
-  .gen-info { font-size: 11px; color: var(--t3); text-align: right; }
-
-  /* ── Month summary strip ── */
-  .summary-strip {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px;
+  
+  .metrics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
-  .sum-card {
-    background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius);
-    padding: 18px 20px; box-shadow: var(--shadow-sm);
-    border-left: 3px solid var(--accent);
-  }
-  .sum-card.series { border-left-color: var(--series); }
-  .sum-card.profit { border-left-color: var(--pos); }
-  .sum-card.profit.neg { border-left-color: var(--neg); }
-  .sum-label { font-size: 10px; color: var(--t3); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; display: block; }
-  .sum-val { font-size: 26px; font-weight: 600; display: block; margin-top: 4px; letter-spacing: -0.02em; }
-  .sum-sub { font-size: 11px; color: var(--t3); display: block; margin-top: 4px; }
-  .sum-val.pos { color: var(--pos); }
-  .sum-val.neg { color: var(--neg); }
+}
 
-  /* ── Section wrapper ── */
-  .section { margin-bottom: 28px; }
-  .section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
-  .hint { font-size: 12px; color: var(--t3); }
+canvas {
+  max-height: 350px;
+}
 
-  /* ── Tables ── */
-  .table-wrap { background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
-  table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; padding: 10px 12px; font-size: 10px; color: var(--t3); font-weight: 500; border-bottom: 1px solid var(--b1); text-transform: uppercase; letter-spacing: 0.04em; background: var(--bg2); white-space: nowrap; }
-  th.r { text-align: right; }
-  td { padding: 11px 12px; vertical-align: middle; font-size: 13px; color: var(--t1); border-bottom: 1px solid var(--b1); }
-  td.r { text-align: right; }
-  td.mono { font-family: "DM Mono", monospace; font-size: 12px; }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--bg2); }
-  .title-cell { font-weight: 500; }
-  .title-sub { font-size: 11px; color: var(--t3); }
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
 
-  /* ── Badges ── */
-  .badge {
-    display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px;
-    border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em;
-  }
-  .badge.gb { background: #fee2e2; color: #991b1b; }
-  .badge.us { background: #dbeafe; color: #1e40af; }
-  .badge.series { background: var(--series-bg); color: var(--series); }
-  @media (prefers-color-scheme: dark) {
-    .badge.gb { background: #7f1d1d; color: #fecaca; }
-    .badge.us { background: #1e3a8a; color: #bfdbfe; }
-  }
+/* ────────────────────────────────────────────
+   TABLES
+──────────────────────────────────────────── */
 
-  /* ── Values ── */
-  .pos { color: var(--pos); }
-  .neg { color: var(--neg); }
-  .mute { color: var(--t3); }
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
 
-  /* ── Two-column layout ── */
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
 
-  /* ── Genre grid ── */
-  .genre-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
-  .genre-card {
-    background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius);
-    padding: 14px 16px; box-shadow: var(--shadow-sm);
-  }
-  .genre-name { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .genre-meta { font-size: 11px; color: var(--t3); margin-bottom: 8px; }
-  .genre-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px; }
-  .genre-row .k { color: var(--t3); }
+thead {
+  background: var(--surface-elevated);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
 
-  /* ── History cards ── */
-  .history-card {
-    background: var(--bg1); border: 1px solid var(--b1); border-radius: var(--radius-lg);
-    margin-bottom: 10px; box-shadow: var(--shadow-sm); overflow: hidden;
-  }
-  .history-head {
-    padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
-    transition: background 0.15s;
-  }
-  .history-head:hover { background: var(--bg2); }
-  .history-title { font-size: 15px; font-weight: 600; }
-  .history-stats { display: flex; gap: 20px; font-size: 12px; }
-  .history-stats .stat { display: flex; flex-direction: column; text-align: right; }
-  .history-stats .stat .k { font-size: 10px; color: var(--t3); text-transform: uppercase; letter-spacing: 0.04em; }
-  .history-stats .stat .v { font-weight: 600; }
-  .history-body { display: none; padding: 0 18px 14px; border-top: 1px solid var(--b1); }
-  .history-card.open .history-body { display: block; }
-  .chevron { font-size: 12px; color: var(--t3); transition: transform 0.2s; }
-  .history-card.open .chevron { transform: rotate(90deg); }
+th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
 
-  /* ── Filters ── */
-  .filters { display: flex; gap: 8px; margin-bottom: 16px; }
-  .filter-group { display: inline-flex; border: 1px solid var(--b1); border-radius: 8px; overflow: hidden; background: var(--bg1); box-shadow: var(--shadow-sm); }
-  .ftab {
-    font-size: 12px; padding: 7px 14px; border: none; background: transparent;
-    color: var(--t2); cursor: pointer; font-weight: 500; border-right: 1px solid var(--b1);
-    font-family: inherit; transition: all 0.15s;
-  }
-  .ftab:last-child { border-right: none; }
-  .ftab:hover { background: var(--bg2); }
-  .ftab.active { background: var(--t1); color: var(--bg1); }
+th:hover {
+  color: var(--accent);
+}
 
-  .loading { text-align: center; padding: 60px 0; color: var(--t2); font-size: 14px; }
+th.right {
+  text-align: right;
+}
 
-  @media (max-width: 700px) { .summary-strip { grid-template-columns: repeat(2, 1fr); } }
+td {
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+td.right {
+  text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr {
+  transition: background 0.15s;
+}
+
+tbody tr:hover {
+  background: rgba(0, 212, 170, 0.05);
+}
+
+.campaign-title {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.campaign-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-running {
+  background: rgba(0, 212, 170, 0.2);
+  color: var(--accent);
+}
+
+.badge-paused {
+  background: rgba(153, 153, 181, 0.2);
+  color: var(--text-secondary);
+}
+
+.badge-book1 {
+  background: rgba(108, 143, 255, 0.2);
+  color: var(--blue);
+}
+
+.badge-ended {
+  background: rgba(153, 153, 181, 0.15);
+  color: var(--text-muted);
+}
+
+.positive {
+  color: var(--accent);
+}
+
+.negative {
+  color: var(--red);
+}
+
+
+/* ── Author Comparison Modal ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 32px;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+.modal-title { font-size: 20px; font-weight: 700; }
+.modal-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.modal-close:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+.modal-highlight {
+  background: rgba(0,212,170,0.08);
+  border: 1px solid rgba(0,212,170,0.3);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--accent);
+}
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: rgba(0,212,170,0.06); }
+
 </style>
 </head>
 <body>
-<div class="container" id="app"><div class="loading">Loading…</div></div>
 
-<script src="ads_overview_data.js" onerror="console.log('No .js file found')"></script>
-
-<script>
-const app = document.getElementById("app");
-let DATA_OBJ = null;
-let state = { territory: "All" };
-
-// ── Helpers ──
-function fmtGBP(n) {
-  if (n == null) return "—";
-  if (Math.abs(n) >= 1e6) return "£" + (n/1e6).toFixed(1) + "M";
-  if (Math.abs(n) >= 1e3) return "£" + Math.round(n).toLocaleString();
-  return "£" + n.toFixed(2);
-}
-function fmtPct(n) {
-  if (n == null) return "—";
-  return n.toFixed(0) + "%";
-}
-function fmtInt(n) {
-  if (n == null) return "—";
-  return Math.round(n).toLocaleString();
-}
-function signClass(n) {
-  if (n == null) return "mute";
-  if (n > 0) return "pos";
-  if (n < 0) return "neg";
-  return "mute";
-}
-function territoryBadge(t) {
-  const cls = t === "GB" ? "gb" : "us";
-  return `<span class="badge ${cls}">${t}</span>`;
-}
-function filterByTerritory(rows) {
-  if (state.territory === "All") return rows;
-  return rows.filter(r => r.territory === state.territory);
-}
-function esc(s) {
-  if (s == null) return "";
-  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
-}
-
-// ── Renderers ──
-function renderSummaryStrip(sum) {
-  const gp = sum.gross_profit || 0;
-  const sp = sum.series_profit;
-  return `
-    <div class="summary-strip">
-      <div class="sum-card">
-        <span class="sum-label">Month Spend</span>
-        <span class="sum-val">${fmtGBP(sum.spend)}</span>
-        <span class="sum-sub">${sum.campaigns} campaigns</span>
-      </div>
-      <div class="sum-card">
-        <span class="sum-label">Month Revenue</span>
-        <span class="sum-val">${fmtGBP(sum.revenue)}</span>
-        <span class="sum-sub">Pub share: ${fmtGBP(sum.pub_revenue)}</span>
-      </div>
-      <div class="sum-card profit ${gp < 0 ? 'neg' : ''}">
-        <span class="sum-label">Gross Profit</span>
-        <span class="sum-val ${signClass(gp)}">${fmtGBP(gp)}</span>
-        <span class="sum-sub">ROI: <span class="${signClass(sum.gross_roi)}">${fmtPct(sum.gross_roi)}</span></span>
-      </div>
-      <div class="sum-card series">
-        <span class="sum-label">Series Profit (B1)</span>
-        <span class="sum-val ${signClass(sp)}">${fmtGBP(sp)}</span>
-        <span class="sum-sub">ROI: <span class="${signClass(sum.series_roi)}">${fmtPct(sum.series_roi)}</span> · ${sum.series_campaigns || 0} B1 campaigns</span>
-      </div>
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>Ads Overview Dashboard</h1>
+      <div class="data-info" id="dataInfo">Loading...</div>
     </div>
-  `;
-}
+  </div>
+  
+  <div class="tabs">
+    <button class="tab active" data-tab="overview">Overview</button>
+    <button class="tab" data-tab="current-month">Current Month</button>
+    <button class="tab" data-tab="historical">Historical</button>
+  </div>
+</div>
 
-function renderCampaignRow(r, showRun) {
-  const seriesTag = r.series ? `<div class="title-sub">${esc(r.series)} · Book ${r.series_no || "?"}</div>` : `<div class="title-sub mute">Standalone</div>`;
-  const runCell = showRun ? `<td class="r mono">${r.run_days}d</td>` : "";
-  return `
-    <tr>
-      <td>${territoryBadge(r.territory)}</td>
-      <td class="title-cell">
-        ${esc(r.title)}
-        ${seriesTag}
-      </td>
-      <td><span class="badge">${esc(r.genre || "—")}</span></td>
-      ${runCell}
-      <td class="r mono">${fmtGBP(r.spend)}</td>
-      <td class="r mono">${fmtGBP(r.revenue)}</td>
-      <td class="r mono ${signClass(r.gross_roi)}">${fmtPct(r.gross_roi)}</td>
-      <td class="r mono ${signClass(r.series_roi)}">${r.series_roi != null ? fmtPct(r.series_roi) : "—"}</td>
-    </tr>
-  `;
-}
-
-function renderCampaignTable(rows, showRun = false) {
-  if (!rows.length) return `<div class="table-wrap"><div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">No campaigns to show</div></div>`;
-  return `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Terr</th>
-            <th>Campaign</th>
-            <th>Genre</th>
-            ${showRun ? '<th class="r">Days</th>' : ''}
-            <th class="r">Spend</th>
-            <th class="r">Revenue</th>
-            <th class="r">Gross ROI</th>
-            <th class="r">Series ROI</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => renderCampaignRow(r, showRun)).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-function renderGenreBreakdown(genres) {
-  if (!genres.length) return "";
-  return `
-    <div class="genre-grid">
-      ${genres.map(g => `
-        <div class="genre-card">
-          <div class="genre-name">${esc(g.genre)}</div>
-          <div class="genre-meta">${g.campaigns} campaigns</div>
-          <div class="genre-row"><span class="k">Spend</span><span class="mono">${fmtGBP(g.spend)}</span></div>
-          <div class="genre-row"><span class="k">Revenue</span><span class="mono">${fmtGBP(g.revenue)}</span></div>
-          <div class="genre-row"><span class="k">Gross ROI</span><span class="mono ${signClass(g.gross_roi)}">${fmtPct(g.gross_roi)}</span></div>
-          <div class="genre-row"><span class="k">Series ROI</span><span class="mono ${signClass(g.series_roi)}">${g.series_roi != null ? fmtPct(g.series_roi) : "—"}</span></div>
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderHistory(history) {
-  if (!history.length) return "";
-  return history.map((h, idx) => `
-    <div class="history-card" data-idx="${idx}">
-      <div class="history-head">
-        <div>
-          <span class="chevron">▶</span>
-          <span class="history-title" style="margin-left:8px">${esc(h.label)}</span>
-        </div>
-        <div class="history-stats">
-          <div class="stat"><span class="k">Spend</span><span class="v mono">${fmtGBP(h.spend)}</span></div>
-          <div class="stat"><span class="k">Gross ROI</span><span class="v mono ${signClass(h.gross_roi)}">${fmtPct(h.gross_roi)}</span></div>
-          <div class="stat"><span class="k">Series ROI</span><span class="v mono ${signClass(h.series_roi)}">${h.series_roi != null ? fmtPct(h.series_roi) : "—"}</span></div>
-          <div class="stat"><span class="k">Campaigns</span><span class="v mono">${h.campaigns}</span></div>
-        </div>
-      </div>
-      <div class="history-body">
-        <h3 style="margin-top:14px">Top 5 campaigns</h3>
-        ${renderCampaignTable(h.top_campaigns || [])}
-      </div>
-    </div>
-  `).join("");
-}
-
-function render() {
-  if (!DATA_OBJ) return;
-  const d = DATA_OBJ;
-
-  const running = filterByTerritory(d.running || []);
-  const topSeries = filterByTerritory(d.month_top_series_roi || []);
-  const topGross = filterByTerritory(d.month_top_gross_roi || []);
-
-  app.innerHTML = `
-    <div class="page-header">
-      <div>
-        <h1>Ads Overview</h1>
-        <div class="subtitle">${esc(d.month_label)} · Latest data: ${esc(d.latest_date || "—")}</div>
-      </div>
-      <div class="gen-info">
-        Generated ${esc(String(d.generated_at || "").slice(0, 16).replace("T", " "))}
-      </div>
-    </div>
-
+<div class="container">
+  
+  <div id="overview" class="tab-content active">
+    
     <div class="filters">
       <div class="filter-group">
-        <button class="ftab ${state.territory === 'All' ? 'active' : ''}" data-t="All">All</button>
-        <button class="ftab ${state.territory === 'GB' ? 'active' : ''}" data-t="GB">GB</button>
-        <button class="ftab ${state.territory === 'US' ? 'active' : ''}" data-t="US">US</button>
+        <span class="filter-label">Year</span>
+        <select id="yearFilter">
+          <option value="all">All Years</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <span class="filter-label">Territory</span>
+        <select id="territoryFilter">
+          <option value="all">All</option>
+          <option value="US">US</option>
+          <option value="GB">GB</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <span class="filter-label">Author</span>
+        <select id="authorFilter">
+          <option value="all">All Authors</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <span class="filter-label">Genre</span>
+        <select id="genreFilter">
+          <option value="all">All Genres</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <span class="filter-label">Series</span>
+        <select id="seriesFilter">
+          <option value="all">All Series</option>
+        </select>
       </div>
     </div>
-
-    ${renderSummaryStrip(d.month_summary || {})}
-
-    <div class="section">
-      <div class="section-head">
-        <h2>Currently Running Campaigns</h2>
-        <span class="hint">Active on ${esc(d.latest_date || "latest day")} · Book 1s ranked by Series ROI</span>
-      </div>
-      ${renderCampaignTable(running, true)}
+    
+    <div class="grouping-options">
+      <button class="group-btn active" data-grouping="month">By Month</button>
     </div>
-
-    <div class="section">
-      <div class="section-head">
-        <h2>${esc(d.month_label)} — Top Campaigns</h2>
-        <span class="hint">Best performers this calendar month</span>
-      </div>
-      <div class="two-col">
-        <div>
-          <h3>Top 10 by Series ROI (Book 1s)</h3>
-          ${renderCampaignTable(topSeries)}
+    
+    <div class="metrics-grid" id="overviewMetrics">
+      <div class="loading">Loading metrics...</div>
+    </div>
+    
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>Spend & Profitability Over Time</h3>
+        <div class="chart-wrapper">
+          <canvas id="financialChart"></canvas>
         </div>
-        <div>
-          <h3>Top 10 by Gross ROI</h3>
-          ${renderCampaignTable(topGross)}
+        <div id="outlierNote" style="display: none;" class="outlier-note"></div>
+      </div>
+    </div>
+    
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>Ad Performance Metrics</h3>
+        <div class="chart-wrapper">
+          <canvas id="adChart"></canvas>
         </div>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-head">
-        <h2>${esc(d.month_label)} — By Genre</h2>
-        <span class="hint">Spend and ROI per genre this month</span>
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>CPC Year-on-Year</h3>
+        <div class="chart-wrapper">
+          <canvas id="cpcYoyChart"></canvas>
+        </div>
       </div>
-      ${renderGenreBreakdown(d.month_by_genre || [])}
-    </div>
-
-    <div class="section">
-      <div class="section-head">
-        <h2>Monthly History</h2>
-        <span class="hint">Click a month to see top campaigns</span>
+      <div class="chart-card">
+        <h3>CTR Year-on-Year</h3>
+        <div class="chart-wrapper">
+          <canvas id="ctrYoyChart"></canvas>
+        </div>
       </div>
-      ${renderHistory(d.history || [])}
     </div>
-  `;
+    
+  </div>
+  
+  <div id="current-month" class="tab-content">
+    
+    <!-- Month Header -->
+    <div style="margin-bottom: 32px;">
+      <h2 id="currentMonthTitle" style="font-size: 24px; font-weight: 700; margin-bottom: 8px;">Loading...</h2>
+      <p style="color: var(--text-secondary); font-size: 14px;">All campaigns running or active this month</p>
+    </div>
+    
+    <!-- Filters -->
+    <div class="filters">
+      <div class="filter-group">
+        <span class="filter-label">Status</span>
+        <select id="monthStatusFilter">
+          <option value="all">All Campaigns</option>
+          <option value="running">Running Now</option>
+          <option value="ended">Paused/Ended</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <span class="filter-label">Territory</span>
+        <select id="monthTerritoryFilter">
+          <option value="all">All</option>
+          <option value="US">US</option>
+          <option value="GB">GB</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <span class="filter-label">Author</span>
+        <select id="monthAuthorFilter">
+          <option value="all">All Authors</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <span class="filter-label">Genre</span>
+        <select id="monthGenreFilter">
+          <option value="all">All Genres</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <span class="filter-label">Book Type</span>
+        <select id="monthBookTypeFilter">
+          <option value="all">All</option>
+          <option value="book1">Book 1 Only</option>
+          <option value="other">Non-Book 1</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- Month Summary Cards -->
+    <div id="monthDataWarning" style="display: none; background: rgba(255, 215, 61, 0.1); border: 1px solid #ffd93d; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+      <div style="color: #ffd93d; font-weight: 600; margin-bottom: 4px;">⚠️ Limited Data View</div>
+      <div style="color: var(--text-secondary); font-size: 13px;">
+        Only showing top 10-20 campaigns. To see ALL campaigns including ended ones, please re-run the updated Python script.
+      </div>
+    </div>
+    
+    <div class="metrics-grid" id="monthMetrics">
+      <div class="loading">Loading metrics...</div>
+    </div>
+    
+    <!-- Ad Performance Chart -->
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>Ad Performance Metrics</h3>
+        <div class="chart-wrapper">
+          <canvas id="monthAdChart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <!-- All Campaigns Table -->
+    <div style="margin-bottom: 32px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 18px; font-weight: 600; color: var(--text-primary);">
+          All Campaigns This Month — Ranked by ROI
+        </h3>
+        <div style="color: var(--text-muted); font-size: 13px;" id="campaignCount">0 campaigns</div>
+      </div>
+      <div id="allCampaignsMonth" class="table-wrap">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <div id="historical" class="tab-content">
+    <h2>Historical - Coming Soon</h2>
+    <p style="color: var(--text-secondary); margin-top: 16px;">This tab will show historical performance analysis.</p>
+  </div>
+  
 
-  // Filter wire-up
-  document.querySelectorAll(".ftab[data-t]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      state.territory = btn.dataset.t;
-      render();
+<!-- Author Comparison Modal -->
+<div class="modal-overlay" id="authorModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalAuthorName">Author</div>
+        <div class="modal-subtitle" id="modalSubtitle"></div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('authorModal').classList.remove('open')">✕</button>
+    </div>
+    <div id="modalHighlight" class="modal-highlight"></div>
+    <div class="table-wrap">
+      <table id="modalTable">
+        <thead>
+          <tr>
+            <th>Campaign</th>
+            <th>Status</th>
+            <th class="right">Spend</th>
+            <th class="right">Clicks</th>
+            <th class="right">CPC</th>
+            <th class="right">CTR</th>
+            <th class="right">Revenue</th>
+            <th class="right">Gross ROI</th>
+            <th class="right">Series ROI</th>
+          </tr>
+        </thead>
+        <tbody id="modalTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script src="ads_overview_data.js"></script>
+
+<script>
+(function() {
+  'use strict';
+  
+  // Global state
+  let currentGrouping = 'month';
+  let financialChart = null;
+  let adChart = null;
+  let cpcYoyChart = null;
+  let ctrYoyChart = null;
+  
+  // Initialize on load
+  document.addEventListener('DOMContentLoaded', init);
+  
+  function init() {
+    if (typeof DATA === 'undefined' || !DATA) {
+      document.getElementById('dataInfo').textContent = 'No data loaded';
+      return;
+    }
+    
+    const generated = new Date(DATA.generated_at);
+    const latest = DATA.latest_date;
+    document.getElementById('dataInfo').textContent = 
+      `Data as of ${latest} • Generated ${generated.toLocaleDateString()}`;
+    
+    populateFilters();
+    renderOverviewMetrics();
+    renderOverviewCharts();
+    setupEventListeners();
+  }
+  
+  function setupEventListeners() {
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        const tabName = this.getAttribute('data-tab');
+        switchTab(tabName);
+      });
     });
+    
+    document.querySelectorAll('.group-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const grouping = this.getAttribute('data-grouping');
+        setGrouping(grouping);
+      });
+    });
+    
+    document.getElementById('yearFilter').addEventListener('change', updateOverviewCharts);
+    document.getElementById('territoryFilter').addEventListener('change', updateOverviewCharts);
+    document.getElementById('authorFilter').addEventListener('change', updateOverviewCharts);
+    document.getElementById('genreFilter').addEventListener('change', updateOverviewCharts);
+    document.getElementById('seriesFilter').addEventListener('change', updateOverviewCharts);
+  }
+  
+  function switchTab(tabName) {
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
+    
+    document.querySelectorAll('.tab-content').forEach(content => {
+      content.classList.remove('active');
+    });
+    document.getElementById(tabName).classList.add('active');
+    
+    // Initialize tab-specific content
+    if (tabName === 'current-month') {
+      renderCurrentMonthTab();
+    }
+  }
+  
+  function setGrouping(grouping) {
+    currentGrouping = grouping;
+    
+    document.querySelectorAll('.group-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    document.querySelector(`.group-btn[data-grouping="${grouping}"]`).classList.add('active');
+    
+    renderOverviewCharts();
+  }
+  
+  function populateFilters() {
+    const years = new Set();
+    const authors = new Set();
+    const genres = new Set();
+    const series = new Set();
+    
+    DATA.history.forEach(month => {
+      // Extract year from month date
+      const year = new Date(month.month).getFullYear();
+      years.add(year);
+      
+      month.top_campaigns.forEach(campaign => {
+        if (campaign.author) authors.add(campaign.author);
+        if (campaign.genre) genres.add(campaign.genre);
+        if (campaign.series) series.add(campaign.series);
+      });
+    });
+    
+    // Populate year filter
+    const yearFilter = document.getElementById('yearFilter');
+    Array.from(years).sort((a, b) => b - a).forEach(year => {
+      const option = document.createElement('option');
+      option.value = year;
+      option.textContent = year;
+      yearFilter.appendChild(option);
+    });
+    
+    const authorFilter = document.getElementById('authorFilter');
+    Array.from(authors).sort().forEach(author => {
+      const option = document.createElement('option');
+      option.value = author;
+      option.textContent = author;
+      authorFilter.appendChild(option);
+    });
+    
+    const genreFilter = document.getElementById('genreFilter');
+    Array.from(genres).sort().forEach(genre => {
+      const option = document.createElement('option');
+      option.value = genre;
+      option.textContent = genre;
+      genreFilter.appendChild(option);
+    });
+    
+    const seriesFilter = document.getElementById('seriesFilter');
+    Array.from(series).sort().forEach(s => {
+      const option = document.createElement('option');
+      option.value = s;
+      option.textContent = s;
+      seriesFilter.appendChild(option);
+    });
+  }
+  
+  function renderOverviewMetrics() {
+    const filteredData = getFilteredData();
+    
+    const totalSpend = filteredData.reduce((sum, m) => sum + (m.spend || 0), 0);
+    const totalClicks = filteredData.reduce((sum, m) => sum + (m.clicks || 0), 0);
+    const totalImpressions = filteredData.reduce((sum, m) => sum + (m.impressions || 0), 0);
+    const totalGrossProfit = filteredData.reduce((sum, m) => sum + (m.gross_profit || 0), 0);
+    const totalSeriesProfit = filteredData.reduce((sum, m) => sum + (m.series_profit || 0), 0);
+    
+    const avgCPC = totalClicks > 0 ? totalSpend / totalClicks : 0;
+    const avgCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
+    const grossROI = totalSpend > 0 ? (totalGrossProfit / totalSpend * 100) : 0;
+    
+    const hasClickData = totalClicks > 0;
+    
+    const metricsHTML = `
+      <div class="metric-card">
+        <div class="metric-label">Total Spend</div>
+        <div class="metric-value">£${formatCurrency(totalSpend)}</div>
+        <div class="metric-sub">${filteredData.length} months</div>
+      </div>
+      
+      <div class="metric-card">
+        <div class="metric-label">Total Clicks</div>
+        <div class="metric-value">${hasClickData ? formatNumber(totalClicks) : 'N/A'}</div>
+        <div class="metric-sub">${hasClickData ? formatNumber(totalImpressions) + ' imp' : 'Update data'}</div>
+      </div>
+      
+      <div class="metric-card">
+        <div class="metric-label">Avg CPC</div>
+        <div class="metric-value">${hasClickData ? '£' + avgCPC.toFixed(3) : 'N/A'}</div>
+        <div class="metric-sub">${hasClickData ? 'CTR: ' + avgCTR.toFixed(2) + '%' : 'Update data'}</div>
+      </div>
+      
+      <div class="metric-card">
+        <div class="metric-label">Gross Profit</div>
+        <div class="metric-value">${totalGrossProfit >= 0 ? '' : '-'}£${formatCurrency(Math.abs(totalGrossProfit))}</div>
+        <div class="metric-sub">ROI: ${grossROI.toFixed(1)}%</div>
+      </div>
+      
+      <div class="metric-card">
+        <div class="metric-label">Series Profit</div>
+        <div class="metric-value">${totalSeriesProfit >= 0 ? '' : '-'}£${formatCurrency(Math.abs(totalSeriesProfit))}</div>
+        <div class="metric-sub">Book 1 only</div>
+      </div>
+    `;
+    
+    document.getElementById('overviewMetrics').innerHTML = metricsHTML;
+  }
+  
+  function renderOverviewCharts() {
+    const filteredData = getFilteredData();
+    
+    filteredData.sort((a, b) => new Date(a.month) - new Date(b.month));
+    
+    const labels = filteredData.map(m => formatMonthLabel(m.month));
+    
+    const spendData = filteredData.map(m => m.spend || 0);
+    const grossProfitData = filteredData.map(m => m.gross_profit || 0);
+    const seriesProfitData = filteredData.map(m => m.series_profit || 0);
+    
+    // Detect outliers in series profit
+    const hasOutliers = detectOutliers(seriesProfitData);
+    
+    const clicksData = filteredData.map(m => m.clicks || 0);
+    const cpcData = filteredData.map(m => m.cpc || 0);
+    const ctrData = filteredData.map(m => m.ctr || 0);
+    
+    renderFinancialChart(labels, spendData, grossProfitData, seriesProfitData, hasOutliers);
+    renderAdChart(labels, clicksData, cpcData, ctrData);
+    renderYoYCharts();
+  }
+  
+  function detectOutliers(data) {
+    if (data.length === 0) return { hasOutliers: false };
+    
+    const validData = data.filter(d => d > 0);
+    if (validData.length === 0) return { hasOutliers: false };
+    
+    const sorted = [...validData].sort((a, b) => a - b);
+    const q1 = sorted[Math.floor(validData.length * 0.25)];
+    const q3 = sorted[Math.floor(validData.length * 0.75)];
+    const iqr = q3 - q1;
+    const upperBound = q3 + (1.5 * iqr);
+    
+    const outlierValues = validData.filter(d => d > upperBound);
+    
+    if (outlierValues.length > 0) {
+      return {
+        hasOutliers: true,
+        count: outlierValues.length,
+        max: Math.max(...outlierValues),
+        upperBound: upperBound
+      };
+    }
+    
+    return { hasOutliers: false };
+  }
+  
+  function renderFinancialChart(labels, spend, grossProfit, seriesProfit, outlierInfo) {
+    const ctx = document.getElementById('financialChart');
+    
+    if (financialChart) {
+      financialChart.destroy();
+    }
+    
+    // Show outlier note if detected
+    const outlierNote = document.getElementById('outlierNote');
+    if (outlierInfo.hasOutliers) {
+      outlierNote.style.display = 'block';
+      outlierNote.textContent = `⚠ ${outlierInfo.count} month(s) with exceptional Series Profit (max: £${formatCurrency(outlierInfo.max)}) - chart scaled for clarity`;
+    } else {
+      outlierNote.style.display = 'none';
+    }
+    
+    // Cap series profit at reasonable bound for visualization
+    const cappedSeriesProfit = seriesProfit.map((val, idx) => {
+      if (outlierInfo.hasOutliers && val > outlierInfo.upperBound) {
+        return outlierInfo.upperBound;
+      }
+      return val;
+    });
+    
+    financialChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Spend',
+            data: spend,
+            backgroundColor: 'rgba(255, 87, 87, 0.7)',
+            borderColor: '#ff5757',
+            borderWidth: 2,
+            borderRadius: 6,
+            type: 'bar',
+            yAxisID: 'y',
+            order: 3
+          },
+          {
+            label: 'Gross Profit',
+            data: grossProfit,
+            borderColor: '#6c8fff',
+            backgroundColor: 'rgba(108, 143, 255, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            type: 'line',
+            yAxisID: 'y',
+            order: 2
+          },
+          {
+            label: 'Series Profit' + (outlierInfo.hasOutliers ? ' (capped)' : ''),
+            data: cappedSeriesProfit,
+            borderColor: '#00d4aa',
+            backgroundColor: 'rgba(0, 212, 170, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            type: 'line',
+            yAxisID: 'y',
+            order: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              color: '#e8e8f0',
+              font: { family: 'Syne', size: 12 },
+              padding: 16
+            }
+          },
+          tooltip: {
+            backgroundColor: '#1c1c2e',
+            titleColor: '#e8e8f0',
+            bodyColor: '#9999b5',
+            borderColor: '#2a2a40',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: true,
+            callbacks: {
+              label: function(context) {
+                const actualValue = seriesProfit[context.dataIndex];
+                const displayValue = context.dataset.label.includes('Series') && outlierInfo.hasOutliers && actualValue > outlierInfo.upperBound
+                  ? actualValue
+                  : context.parsed.y;
+                return context.dataset.label + ': £' + formatCurrency(displayValue);
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: '#2a2a40', drawBorder: false },
+            ticks: {
+              color: '#9999b5',
+              font: { family: 'IBM Plex Mono', size: 11 },
+              callback: function(value) {
+                return '£' + formatCurrency(value);
+              }
+            }
+          },
+          x: {
+            grid: { display: false, drawBorder: false },
+            ticks: {
+              color: '#9999b5',
+              font: { family: 'IBM Plex Mono', size: 11 }
+            }
+          }
+        }
+      }
+    });
+  }
+  
+  function renderAdChart(labels, clicks, cpc, ctr) {
+    const ctx = document.getElementById('adChart');
+    
+    if (adChart) {
+      adChart.destroy();
+    }
+    
+    adChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Clicks',
+            data: clicks,
+            backgroundColor: '#6c8fff',
+            borderRadius: 6,
+            yAxisID: 'y'
+          },
+          {
+            label: 'CPC (£)',
+            data: cpc,
+            type: 'line',
+            borderColor: '#ff6b9d',
+            backgroundColor: 'rgba(255, 107, 157, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            yAxisID: 'y1'
+          },
+          {
+            label: 'CTR (%)',
+            data: ctr,
+            type: 'line',
+            borderColor: '#ffd93d',
+            backgroundColor: 'rgba(255, 217, 61, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            yAxisID: 'y2'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              color: '#e8e8f0',
+              font: { family: 'Syne', size: 12 },
+              padding: 16
+            }
+          },
+          tooltip: {
+            backgroundColor: '#1c1c2e',
+            titleColor: '#e8e8f0',
+            bodyColor: '#9999b5',
+            borderColor: '#2a2a40',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: true,
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label) {
+                  label += ': ';
+                }
+                if (context.dataset.label.includes('CPC')) {
+                  label += '£' + context.parsed.y.toFixed(3);
+                } else if (context.dataset.label.includes('CTR')) {
+                  label += context.parsed.y.toFixed(2) + '%';
+                } else {
+                  label += formatNumber(context.parsed.y);
+                }
+                return label;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            beginAtZero: true,
+            grid: { color: '#2a2a40', drawBorder: false },
+            ticks: {
+              color: '#9999b5',
+              font: { family: 'IBM Plex Mono', size: 11 }
+            },
+            title: {
+              display: true,
+              text: 'Clicks',
+              color: '#6c8fff',
+              font: { family: 'Syne', size: 12 }
+            }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: {
+              color: '#9999b5',
+              font: { family: 'IBM Plex Mono', size: 11 },
+              callback: function(value) {
+                return '£' + value.toFixed(2);
+              }
+            },
+            title: {
+              display: true,
+              text: 'CPC',
+              color: '#ff6b9d',
+              font: { family: 'Syne', size: 12 }
+            }
+          },
+          y2: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: {
+              color: '#9999b5',
+              font: { family: 'IBM Plex Mono', size: 11 },
+              callback: function(value) {
+                return value.toFixed(1) + '%';
+              }
+            },
+            title: {
+              display: true,
+              text: 'CTR',
+              color: '#ffd93d',
+              font: { family: 'Syne', size: 12 }
+            }
+          },
+          x: {
+            grid: { display: false, drawBorder: false },
+            ticks: {
+              color: '#9999b5',
+              font: { family: 'IBM Plex Mono', size: 11 }
+            }
+          }
+        }
+      }
+    });
+  }
+  
+  function renderYoYCharts() {
+    if (!DATA || !DATA.history) return;
+
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const YEAR_COLORS = {
+      2023: { bar: 'rgba(108,143,255,0.7)', border: '#6c8fff' },
+      2024: { bar: 'rgba(255,107,157,0.7)', border: '#ff6b9d' },
+      2025: { bar: 'rgba(0,212,170,0.7)',   border: '#00d4aa' },
+      2026: { bar: 'rgba(255,217,61,0.7)',   border: '#ffd93d' },
+    };
+
+    // Group history by year and month number
+    const byYear = {};
+    DATA.history.forEach(m => {
+      const d = new Date(m.month);
+      const year = d.getFullYear();
+      const monthIdx = d.getMonth(); // 0-11
+
+      // Recompute CPC and CTR from raw totals
+      const cpc = m.clicks > 0 ? m.spend / m.clicks : null;
+      const ctr = m.impressions > 0 ? (m.clicks / m.impressions * 100) : null;
+
+      if (!byYear[year]) byYear[year] = Array(12).fill(null);
+      byYear[year][monthIdx] = { cpc, ctr };
+    });
+
+    const years = Object.keys(byYear).map(Number).sort();
+
+    function makeDatasets(metric) {
+      return years.map(year => ({
+        label: String(year),
+        data: MONTH_NAMES.map((_, i) => {
+          const entry = byYear[year][i];
+          return entry ? (entry[metric] !== null ? parseFloat(entry[metric].toFixed(metric === 'cpc' ? 3 : 2)) : null) : null;
+        }),
+        backgroundColor: (YEAR_COLORS[year] || { bar: 'rgba(150,150,150,0.7)' }).bar,
+        borderColor: (YEAR_COLORS[year] || { border: '#999' }).border,
+        borderWidth: 2,
+        borderRadius: 4,
+      }));
+    }
+
+    const commonOptions = (yLabel) => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: { color: '#e8e8f0', font: { family: 'Syne', size: 12 }, padding: 16 }
+        },
+        tooltip: {
+          backgroundColor: '#1c1c2e',
+          titleColor: '#e8e8f0',
+          bodyColor: '#9999b5',
+          borderColor: '#2a2a40',
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            label: ctx => {
+              if (ctx.parsed.y === null) return null;
+              const prefix = yLabel === 'CPC (£)' ? '£' : '';
+              const suffix = yLabel === 'CTR (%)' ? '%' : '';
+              return `${ctx.dataset.label}: ${prefix}${ctx.parsed.y}${suffix}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#9999b5', font: { family: 'Syne', size: 11 } },
+          grid: { color: 'rgba(42,42,64,0.5)' }
+        },
+        y: {
+          ticks: { color: '#9999b5', font: { family: 'IBM Plex Mono', size: 11 } },
+          grid: { color: 'rgba(42,42,64,0.5)' },
+          title: { display: true, text: yLabel, color: '#9999b5', font: { family: 'Syne', size: 11 } }
+        }
+      }
+    });
+
+    // CPC chart
+    if (cpcYoyChart) cpcYoyChart.destroy();
+    cpcYoyChart = new Chart(document.getElementById('cpcYoyChart'), {
+      type: 'bar',
+      data: { labels: MONTH_NAMES, datasets: makeDatasets('cpc') },
+      options: commonOptions('CPC (£)')
+    });
+
+    // CTR chart
+    if (ctrYoyChart) ctrYoyChart.destroy();
+    ctrYoyChart = new Chart(document.getElementById('ctrYoyChart'), {
+      type: 'bar',
+      data: { labels: MONTH_NAMES, datasets: makeDatasets('ctr') },
+      options: commonOptions('CTR (%)')
+    });
+  }
+
+  function getFilteredData() {
+    if (!DATA || !DATA.history) return [];
+    
+    const year = document.getElementById('yearFilter').value;
+    const territory = document.getElementById('territoryFilter').value;
+    const author = document.getElementById('authorFilter').value;
+    const genre = document.getElementById('genreFilter').value;
+    const series = document.getElementById('seriesFilter').value;
+    
+    return DATA.history.map(month => {
+      // Filter by year first
+      const monthYear = new Date(month.month).getFullYear();
+      if (year !== 'all' && monthYear !== parseInt(year)) {
+        return null;
+      }
+      
+      let spend = month.spend || 0;
+      let clicks = month.clicks || 0;
+      let impressions = month.impressions || 0;
+      let grossProfit = month.gross_profit || 0;
+      let seriesProfit = month.series_profit || 0;
+      let campaignCount = month.campaigns || 0;
+      
+      if (territory !== 'all' || author !== 'all' || genre !== 'all' || series !== 'all') {
+        let campaigns = month.top_campaigns || [];
+        
+        if (territory !== 'all') {
+          campaigns = campaigns.filter(c => c.territory === territory);
+        }
+        
+        if (author !== 'all') {
+          campaigns = campaigns.filter(c => c.author === author);
+        }
+        
+        if (genre !== 'all') {
+          campaigns = campaigns.filter(c => c.genre === genre);
+        }
+        
+        if (series !== 'all') {
+          campaigns = campaigns.filter(c => c.series === series);
+        }
+        
+        spend = campaigns.reduce((sum, c) => sum + (c.spend || 0), 0);
+        clicks = campaigns.reduce((sum, c) => sum + (c.clicks || 0), 0);
+        impressions = campaigns.reduce((sum, c) => sum + (c.impressions || 0), 0);
+        grossProfit = campaigns.reduce((sum, c) => sum + (c.gross_profit || 0), 0);
+        seriesProfit = campaigns.reduce((sum, c) => sum + (c.series_profit || 0), 0);
+        campaignCount = campaigns.length;
+      }
+      
+      const cpc = clicks > 0 ? spend / clicks : 0;
+      const ctr = impressions > 0 ? (clicks / impressions * 100) : 0;
+      
+      return {
+        month: month.month,
+        label: month.label,
+        spend,
+        clicks,
+        impressions,
+        cpc,
+        ctr,
+        gross_profit: grossProfit,
+        series_profit: seriesProfit,
+        campaigns: campaignCount
+      };
+    }).filter(m => m !== null && m.spend > 0);
+  }
+  
+  function updateOverviewCharts() {
+    renderOverviewMetrics();
+    renderOverviewCharts();
+  }
+  
+  function formatNumber(num) {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'k';
+    }
+    return num.toFixed(0);
+  }
+  
+  function formatCurrency(num) {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(2) + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'k';
+    }
+    if (num >= 100) {
+      return num.toFixed(0);
+    }
+    return num.toFixed(2);
+  }
+  
+  function formatMonthLabel(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
+  
+  // ══════════════════════════════════════════════════════════════
+  // CURRENT MONTH TAB
+  // ══════════════════════════════════════════════════════════════
+  
+  let monthAdChart = null;
+  
+  function renderCurrentMonthTab() {
+    if (!DATA || !DATA.month_summary) return;
+    
+    // Set title
+    document.getElementById('currentMonthTitle').textContent = DATA.month_label || 'Current Month';
+    
+    // Show warning if month_campaigns data is not available
+    const warningEl = document.getElementById('monthDataWarning');
+    if (!DATA.month_campaigns || DATA.month_campaigns.length === 0) {
+      warningEl.style.display = 'block';
+    } else {
+      warningEl.style.display = 'none';
+    }
+    
+    // Populate filters
+    populateMonthFilters();
+    
+    // Render content
+    renderMonthMetrics();
+    renderMonthAdChart();
+    renderAllCampaigns();
+    
+    // Setup filter listeners
+    setupMonthFilterListeners();
+  }
+  
+  function populateMonthFilters() {
+    // Get all campaigns from month data (includes both running and ended)
+    let allCampaigns = [];
+    
+    if (DATA.month_campaigns && DATA.month_campaigns.length > 0) {
+      // Use the complete month_campaigns array if available
+      allCampaigns = DATA.month_campaigns;
+    } else {
+      // Fallback: combine running + top lists
+      allCampaigns = [
+        ...(DATA.running || []),
+        ...(DATA.month_top_series_roi || []),
+        ...(DATA.month_top_gross_roi || [])
+      ];
+    }
+    
+    const authors = new Set();
+    const genres = new Set();
+    
+    allCampaigns.forEach(c => {
+      if (c.author) authors.add(c.author);
+      if (c.genre) genres.add(c.genre);
+    });
+    
+    // Populate author filter
+    const authorFilter = document.getElementById('monthAuthorFilter');
+    authorFilter.innerHTML = '<option value="all">All Authors</option>';
+    Array.from(authors).sort().forEach(author => {
+      const option = document.createElement('option');
+      option.value = author;
+      option.textContent = author;
+      authorFilter.appendChild(option);
+    });
+    
+    // Populate genre filter
+    const genreFilter = document.getElementById('monthGenreFilter');
+    genreFilter.innerHTML = '<option value="all">All Genres</option>';
+    Array.from(genres).sort().forEach(genre => {
+      const option = document.createElement('option');
+      option.value = genre;
+      option.textContent = genre;
+      genreFilter.appendChild(option);
+    });
+  }
+  
+  function setupMonthFilterListeners() {
+    ['monthStatusFilter', 'monthTerritoryFilter', 'monthAuthorFilter', 'monthGenreFilter', 'monthBookTypeFilter'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', () => {
+          renderMonthMetrics();
+          renderMonthAdChart();
+          renderAllCampaigns();
+        });
+      }
+    });
+  }
+  
+  function renderMonthMetrics() {
+    // Get filtered campaigns and recalculate summary
+    const campaigns = getFilteredMonthCampaigns();
+    
+    // Calculate summary from filtered campaigns
+    const summary = {
+      spend: 0,
+      clicks: 0,
+      impressions: 0,
+      revenue: 0,
+      gross_profit: 0,
+      series_profit: 0,
+      campaigns: campaigns.length,
+      series_campaigns: 0
+    };
+    
+    campaigns.forEach(c => {
+      summary.spend += c.spend || 0;
+      summary.clicks += c.clicks || 0;
+      summary.impressions += c.impressions || 0;
+      summary.revenue += c.revenue || 0;
+      summary.gross_profit += c.gross_profit || 0;
+      
+      if (c.series_no === 1 && c.series_profit !== null && c.series_profit !== undefined) {
+        summary.series_profit += c.series_profit || 0;
+        summary.series_campaigns++;
+      }
+    });
+    
+    // Calculate derived metrics
+    summary.cpc = summary.clicks > 0 ? summary.spend / summary.clicks : 0;
+    summary.ctr = summary.impressions > 0 ? (summary.clicks / summary.impressions) * 100 : 0;
+    summary.gross_roi = summary.spend > 0 ? (summary.gross_profit / summary.spend) * 100 : 0;
+    
+    const metricsHTML = `
+      <div class="metric-card">
+        <div class="metric-label">Total Spend</div>
+        <div class="metric-value">£${formatCurrency(summary.spend)}</div>
+        <div class="metric-sub">${summary.campaigns} campaigns</div>
+      </div>
+      
+      <div class="metric-card">
+        <div class="metric-label">Clicks</div>
+        <div class="metric-value">${summary.clicks ? formatNumber(summary.clicks) : 'N/A'}</div>
+        <div class="metric-sub">${summary.cpc ? '£' + summary.cpc.toFixed(3) + ' CPC' : 'Update data'}</div>
+      </div>
+      
+      <div class="metric-card">
+        <div class="metric-label">CTR</div>
+        <div class="metric-value">${summary.ctr ? summary.ctr.toFixed(2) + '%' : 'N/A'}</div>
+        <div class="metric-sub">${summary.impressions ? formatNumber(summary.impressions) + ' imp' : 'Update data'}</div>
+      </div>
+      
+      <div class="metric-card">
+        <div class="metric-label">Gross Profit</div>
+        <div class="metric-value ${summary.gross_profit >= 0 ? 'positive' : 'negative'}">
+          ${summary.gross_profit >= 0 ? '' : '-'}£${formatCurrency(Math.abs(summary.gross_profit))}
+        </div>
+        <div class="metric-sub">ROI: ${summary.gross_roi ? summary.gross_roi.toFixed(1) : 0}%</div>
+      </div>
+      
+      <div class="metric-card">
+        <div class="metric-label">Series Profit</div>
+        <div class="metric-value ${summary.series_profit >= 0 ? 'positive' : 'negative'}">
+          ${summary.series_profit >= 0 ? '' : '-'}£${formatCurrency(Math.abs(summary.series_profit))}
+        </div>
+        <div class="metric-sub">${summary.series_campaigns} Book 1</div>
+      </div>
+    `;
+    
+    document.getElementById('monthMetrics').innerHTML = metricsHTML;
+  }
+  
+  function renderMonthAdChart() {
+    const ctx = document.getElementById('monthAdChart');
+    if (monthAdChart) monthAdChart.destroy();
+
+    const campaigns = getFilteredMonthCampaigns();
+    if (campaigns.length === 0) return;
+
+    // Sort by spend desc for consistent x-axis
+    const sorted = [...campaigns].sort((a, b) => (b.spend || 0) - (a.spend || 0));
+
+    const labels = sorted.map(c => {
+      const t = (c.title || '').length > 18 ? (c.title || '').substring(0, 18) + '…' : (c.title || '');
+      return c.territory ? t + ' (' + c.territory + ')' : t;
+    });
+
+    const clicks  = sorted.map(c => c.clicks || 0);
+    const cpcData = sorted.map(c => c.cpc   || null);
+    const ctrData = sorted.map(c => c.ctr   || null);
+
+    monthAdChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'CPC (£)',
+            data: cpcData,
+            type: 'line',
+            borderColor: '#ff6b9d',
+            backgroundColor: 'rgba(255,107,157,0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            yAxisID: 'y1',
+            order: 1
+          },
+          {
+            label: 'CTR (%)',
+            data: ctrData,
+            type: 'line',
+            borderColor: '#ffd93d',
+            backgroundColor: 'rgba(255,217,61,0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            yAxisID: 'y2',
+            order: 2
+          },
+          {
+            label: 'Clicks',
+            data: clicks,
+            backgroundColor: 'rgba(108,143,255,0.7)',
+            borderRadius: 6,
+            yAxisID: 'y',
+            order: 3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true, position: 'top',
+            labels: { color: '#e8e8f0', font: { family: 'Syne', size: 12 }, padding: 16 }
+          },
+          tooltip: {
+            backgroundColor: '#1c1c2e', titleColor: '#e8e8f0',
+            bodyColor: '#9999b5', borderColor: '#2a2a40', borderWidth: 1, padding: 12,
+            callbacks: {
+              label: function(context) {
+                if (context.dataset.label.includes('CPC')) return 'CPC: £' + (context.parsed.y || 0).toFixed(3);
+                if (context.dataset.label.includes('CTR')) return 'CTR: ' + (context.parsed.y || 0).toFixed(2) + '%';
+                return 'Clicks: ' + formatNumber(context.parsed.y);
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#9999b5', font: { family: 'Syne', size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 25 },
+            grid: { color: 'rgba(42,42,64,0.5)' }
+          },
+          y: {
+            type: 'linear', position: 'left', beginAtZero: true,
+            ticks: { color: '#9999b5', font: { family: 'IBM Plex Mono', size: 11 } },
+            grid: { color: 'rgba(42,42,64,0.5)' },
+            title: { display: true, text: 'Clicks', color: '#6c8fff', font: { family: 'Syne', size: 11 } }
+          },
+          y1: {
+            type: 'linear', position: 'right',
+            ticks: { color: '#9999b5', font: { family: 'IBM Plex Mono', size: 11 }, callback: v => '£' + (v||0).toFixed(3) },
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'CPC', color: '#ff6b9d', font: { family: 'Syne', size: 11 } }
+          },
+          y2: {
+            type: 'linear', position: 'right',
+            ticks: { color: '#9999b5', font: { family: 'IBM Plex Mono', size: 11 }, callback: v => (v||0).toFixed(2) + '%' },
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'CTR', color: '#ffd93d', font: { family: 'Syne', size: 11 } }
+          }
+        }
+      }
+    });
+  }
+  
+  function getFilteredMonthCampaigns() {
+    const status = document.getElementById('monthStatusFilter').value;
+    const territory = document.getElementById('monthTerritoryFilter').value;
+    const author = document.getElementById('monthAuthorFilter').value;
+    const genre = document.getElementById('monthGenreFilter').value;
+    const bookType = document.getElementById('monthBookTypeFilter').value;
+    
+    // Get all campaigns from current month
+    let campaigns = [];
+    
+    if (DATA.month_campaigns && DATA.month_campaigns.length > 0) {
+      campaigns = [...DATA.month_campaigns];
+      console.log(`Using month_campaigns: ${campaigns.length} total campaigns`);
+    } else {
+      // Fallback: combine top series and top gross ROI lists
+      console.warn('month_campaigns not found in DATA - using fallback (limited to top campaigns only)');
+      console.warn('To see all campaigns including ended ones, please re-run the Python script with the updated version.');
+      
+      const monthCampaigns = new Map();
+      
+      if (DATA.month_top_series_roi) {
+        DATA.month_top_series_roi.forEach(c => {
+          const key = `${c.edition_id}_${c.territory}`;
+          monthCampaigns.set(key, c);
+        });
+      }
+      
+      if (DATA.month_top_gross_roi) {
+        DATA.month_top_gross_roi.forEach(c => {
+          const key = `${c.edition_id}_${c.territory}`;
+          monthCampaigns.set(key, c);
+        });
+      }
+      
+      campaigns = Array.from(monthCampaigns.values());
+      console.log(`Fallback mode: ${campaigns.length} campaigns (may be incomplete)`);
+    }
+    
+    // For status filter, check if campaign is currently running
+    const runningKeys = new Set(
+      (DATA.running || []).map(r => `${r.edition_id}_${r.territory}`)
+    );
+    
+    console.log(`Total running campaigns: ${runningKeys.size}`);
+    console.log(`Campaigns before status filter: ${campaigns.length}`);
+    
+    if (status !== 'all') {
+      if (status === 'running') {
+        campaigns = campaigns.filter(c => {
+          const key = `${c.edition_id}_${c.territory}`;
+          return runningKeys.has(key);
+        });
+        console.log(`After 'running' filter: ${campaigns.length} campaigns`);
+      } else if (status === 'ended') {
+        campaigns = campaigns.filter(c => {
+          const key = `${c.edition_id}_${c.territory}`;
+          const isEnded = !runningKeys.has(key);
+          return isEnded;
+        });
+        console.log(`After 'ended' filter: ${campaigns.length} campaigns`);
+      }
+    }
+    
+    // Apply other filters
+    const beforeOtherFilters = campaigns.length;
+    campaigns = campaigns.filter(c => {
+      if (territory !== 'all' && c.territory !== territory) return false;
+      if (author !== 'all' && c.author !== author) return false;
+      if (genre !== 'all' && c.genre !== genre) return false;
+      if (bookType === 'book1' && c.series_no !== 1) return false;
+      if (bookType === 'other' && c.series_no === 1) return false;
+      return true;
+    });
+    
+    console.log(`After other filters (territory/author/genre/bookType): ${campaigns.length} campaigns`);
+    
+    return campaigns;
+  }
+  
+  function openAuthorModal(author, highlightKey) {
+    const allCampaigns = getFilteredMonthCampaigns();
+    const authorCampaigns = allCampaigns.filter(c => c.author === author);
+    if (authorCampaigns.length === 0) return;
+
+    const runningKeys = new Set((DATA.running || []).map(r => r.edition_id + '_' + r.territory));
+
+    // Sort by best ROI
+    authorCampaigns.sort((a, b) => {
+      const aRoi = a.series_roi !== null && a.series_roi !== undefined ? a.series_roi : (a.gross_roi || -9999);
+      const bRoi = b.series_roi !== null && b.series_roi !== undefined ? b.series_roi : (b.gross_roi || -9999);
+      return bRoi - aRoi;
+    });
+
+    document.getElementById('modalAuthorName').textContent = author;
+    document.getElementById('modalSubtitle').textContent = authorCampaigns.length + ' campaign' + (authorCampaigns.length !== 1 ? 's' : '') + ' this month';
+
+    const totalSpend = authorCampaigns.reduce((s, c) => s + (c.spend || 0), 0);
+    const totalClicks = authorCampaigns.reduce((s, c) => s + (c.clicks || 0), 0);
+    const totalImpressions = authorCampaigns.reduce((s, c) => s + (c.impressions || 0), 0);
+    const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
+    const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
+    document.getElementById('modalHighlight').innerHTML =
+      'Total spend: <strong>£' + formatCurrency(totalSpend) + '</strong> &nbsp;·&nbsp; ' +
+      'Avg CPC: <strong>£' + avgCpc.toFixed(3) + '</strong> &nbsp;·&nbsp; ' +
+      'Avg CTR: <strong>' + avgCtr.toFixed(2) + '%</strong>';
+
+    const tbody = document.getElementById('modalTableBody');
+    tbody.innerHTML = authorCampaigns.map(c => {
+      const key = c.edition_id + '_' + c.territory;
+      const isRunning = runningKeys.has(key);
+      const isHighlight = key === highlightKey;
+      const rowStyle = isHighlight ? ' style="background: rgba(0,212,170,0.1);"' : '';
+      return '<tr' + rowStyle + '>' +
+        '<td>' +
+          '<div class="campaign-title">' + (c.title || '') + (isHighlight ? ' <span style="font-size:10px;color:var(--accent);">◀ selected</span>' : '') + '</div>' +
+          '<div class="campaign-meta">' + c.territory + ' • ' + (c.genre || 'Unknown') + (c.series_no === 1 ? ' • Book 1' : '') + '</div>' +
+        '</td>' +
+        '<td><span class="badge ' + (isRunning ? 'badge-running' : 'badge-ended') + '">' + (isRunning ? 'Running' : 'Ended') + '</span></td>' +
+        '<td class="right">£' + formatCurrency(c.spend) + '</td>' +
+        '<td class="right">' + (c.clicks ? formatNumber(c.clicks) : '-') + '</td>' +
+        '<td class="right">' + (c.cpc ? '£' + c.cpc.toFixed(3) : '-') + '</td>' +
+        '<td class="right">' + (c.ctr ? c.ctr.toFixed(2) + '%' : '-') + '</td>' +
+        '<td class="right">£' + formatCurrency(c.revenue) + '</td>' +
+        '<td class="right ' + (c.gross_roi >= 0 ? 'positive' : 'negative') + '">' + (c.gross_roi ? c.gross_roi.toFixed(1) + '%' : '-') + '</td>' +
+        '<td class="right ' + ((c.series_roi !== null && c.series_roi !== undefined) ? (c.series_roi >= 0 ? 'positive' : 'negative') : '') + '">' + (c.series_roi !== null && c.series_roi !== undefined ? c.series_roi.toFixed(1) + '%' : '-') + '</td>' +
+      '</tr>';
+    }).join('');
+
+    document.getElementById('authorModal').classList.add('open');
+  }
+
+  // Close modal on overlay click
+  document.getElementById('authorModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
   });
 
-  // History expand/collapse
-  document.querySelectorAll(".history-card .history-head").forEach(head => {
-    head.addEventListener("click", () => {
-      head.parentElement.classList.toggle("open");
+  function renderAllCampaigns() {
+    const campaigns = getFilteredMonthCampaigns();
+
+    document.getElementById('campaignCount').textContent = campaigns.length + ' campaign' + (campaigns.length !== 1 ? 's' : '');
+
+    if (campaigns.length === 0) {
+      document.getElementById('allCampaignsMonth').innerHTML = '<div class="loading">No campaigns match filters</div>';
+      return;
+    }
+
+    const runningKeys = new Set((DATA.running || []).map(r => r.edition_id + '_' + r.territory));
+
+    // Sort by best ROI descending (series ROI for Book 1, else gross ROI)
+    const sorted = [...campaigns].sort((a, b) => {
+      const aRoi = (a.series_roi !== null && a.series_roi !== undefined) ? a.series_roi : (a.gross_roi || -9999);
+      const bRoi = (b.series_roi !== null && b.series_roi !== undefined) ? b.series_roi : (b.gross_roi || -9999);
+      return bRoi - aRoi;
     });
-  });
-}
 
-async function init() {
-  try {
-    const resp = await fetch("ads_overview_data.json");
-    if (resp.ok) { DATA_OBJ = await resp.json(); render(); return; }
-  } catch (e) { console.error("fetch error", e); }
-  if (typeof DATA !== "undefined") { DATA_OBJ = DATA; render(); return; }
-  app.innerHTML = '<div class="loading" style="color:#ef4444">Could not load data.</div>';
-}
+    const tableHTML = '<table><thead><tr>' +
+      '<th>Campaign</th>' +
+      '<th>Status</th>' +
+      '<th class="right">Days</th>' +
+      '<th class="right">Spend</th>' +
+      '<th class="right">Clicks</th>' +
+      '<th class="right">CPC</th>' +
+      '<th class="right">CTR</th>' +
+      '<th class="right">Revenue</th>' +
+      '<th class="right">Gross ROI</th>' +
+      '<th class="right">Series ROI</th>' +
+      '</tr></thead><tbody>' +
+      sorted.map(c => {
+        const key = c.edition_id + '_' + c.territory;
+        const isRunning = runningKeys.has(key);
+        const hasAuthor = c.author && c.author !== 'Unknown';
+        const authorAttr = hasAuthor ? ' data-author="' + c.author.replace(/"/g, '&quot;') + '" data-key="' + key + '"' : '';
+        const clickClass = hasAuthor ? ' clickable' : '';
+        const titleHint = hasAuthor ? ' title="Click to compare ' + c.author.replace(/"/g, '&quot;') + ' campaigns"' : '';
+        return '<tr class="' + clickClass + '"' + authorAttr + titleHint + '>' +
+          '<td>' +
+            '<div class="campaign-title">' + (c.title || '') + '</div>' +
+            '<div class="campaign-meta">' +
+              (c.author || 'Unknown') + ' • ' + c.territory + ' • ' + (c.genre || 'Unknown') +
+              (c.series_no === 1 ? ' • Book 1' : '') +
+            '</div>' +
+          '</td>' +
+          '<td><span class="badge ' + (isRunning ? 'badge-running' : 'badge-ended') + '">' + (isRunning ? 'Running' : 'Ended') + '</span></td>' +
+          '<td class="right">' + (c.run_days || '-') + '</td>' +
+          '<td class="right">£' + formatCurrency(c.spend) + '</td>' +
+          '<td class="right">' + (c.clicks ? formatNumber(c.clicks) : '-') + '</td>' +
+          '<td class="right">' + (c.cpc ? '£' + c.cpc.toFixed(3) : '-') + '</td>' +
+          '<td class="right">' + (c.ctr ? c.ctr.toFixed(2) + '%' : '-') + '</td>' +
+          '<td class="right">£' + formatCurrency(c.revenue) + '</td>' +
+          '<td class="right ' + (c.gross_roi >= 0 ? 'positive' : 'negative') + '">' + (c.gross_roi ? c.gross_roi.toFixed(1) + '%' : '-') + '</td>' +
+          '<td class="right ' + ((c.series_roi !== null && c.series_roi !== undefined) ? (c.series_roi >= 0 ? 'positive' : 'negative') : '') + '">' + (c.series_roi !== null && c.series_roi !== undefined ? c.series_roi.toFixed(1) + '%' : '-') + '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table>';
 
-init();
+    const container = document.getElementById('allCampaignsMonth');
+    container.innerHTML = tableHTML;
+
+    // Attach click handlers for author comparison
+    container.querySelectorAll('tr.clickable').forEach(row => {
+      row.addEventListener('click', () => {
+        openAuthorModal(row.dataset.author, row.dataset.key);
+      });
+    });
+  }
+  
+})();
 </script>
+
 </body>
 </html>

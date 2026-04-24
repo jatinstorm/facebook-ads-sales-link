@@ -11,6 +11,11 @@ Terminology:
 Run:  python ads_overview.py
 
 Produces ads_overview_data.json with the shape the dashboard expects.
+
+UPDATES (Month Tab Fix):
+  - Now exports 'month_campaigns' array containing ALL campaigns from current month
+    (both running and ended) to enable proper filtering in the dashboard
+  - This allows the Month tab to show ended campaigns and apply filters correctly
 """
 
 import json
@@ -18,19 +23,6 @@ import math
 import pandas as pd
 from datetime import datetime, date
 from bq import get_client
-
-
-SERIES_PROFIT_EXPR = """
-  CASE WHEN a.Series_No = 1 AND m.ebook_value_per_unit IS NOT NULL THEN
-    (
-      (a.ebook_units * m.ebook_value_per_unit)
-      + (a.paperback_units * COALESCE(m.pod_value_per_unit, 0))
-      + (a.kenp * COALESCE(m.kenp_value_per_unit, 0))
-    ) * 0.5
-    - a.spend
-  END
-"""
-
 
 # ─────────────────────────────────────────────
 # STEP 1 — Fetch raw data from BigQuery
@@ -73,6 +65,7 @@ def get_data():
     SELECT
       a.Title, a.Edition_ID, a.Territory,
       a.Series, a.Series_No, a.Genre, a.Genre_Subgenre,
+      e.Cover_Author,
       ac.run_start,
       COUNT(DISTINCT a.date_start) AS run_days,
       MAX(a.date_start) AS last_active_date,
@@ -85,16 +78,21 @@ def get_data():
       SUM(a.ebook_revenue) AS ebook_revenue,
       SUM(a.paperback_revenue) AS paperback_revenue,
       SUM(a.kenp_revenue) AS kenp_revenue,
-      SUM({SERIES_PROFIT_EXPR}) AS series_profit
+      MAX(m.ebook_value_per_unit) AS ebook_value_per_unit,
+      MAX(m.kenp_value_per_unit) AS kenp_value_per_unit,
+      MAX(m.pod_value_per_unit) AS pod_value_per_unit
     FROM `marketing-489109.facebook_ads.ads_sales_analytics` a
     JOIN active_campaigns ac
       ON a.Edition_ID = ac.Edition_ID
       AND a.Territory = ac.Territory
       AND a.date_start >= ac.run_start
+      AND NOT (a.ebook_units > 0 AND a.ebook_revenue = 0)
     LEFT JOIN `marketing-489109.facebook_ads.series_multipliers` m
       ON a.Series = m.Series AND a.Territory = m.Territory
+    LEFT JOIN `storm-pub-amazon-sales.airtable.awe_editions` e
+      ON a.Edition_ID = e.ID
     GROUP BY a.Title, a.Edition_ID, a.Territory, a.Series, a.Series_No,
-             a.Genre, a.Genre_Subgenre, ac.run_start
+             a.Genre, a.Genre_Subgenre, e.Cover_Author, ac.run_start
     """
 
     # Current calendar month: one row per campaign (book × territory)
@@ -102,6 +100,7 @@ def get_data():
     SELECT
       a.Title, a.Edition_ID, a.Territory,
       a.Series, a.Series_No, a.Genre, a.Genre_Subgenre,
+      e.Cover_Author,
       SUM(a.spend) AS spend,
       SUM(a.clicks) AS clicks,
       SUM(a.impressions) AS impressions,
@@ -111,35 +110,49 @@ def get_data():
       SUM(a.ebook_revenue) AS ebook_revenue,
       SUM(a.paperback_revenue) AS paperback_revenue,
       SUM(a.kenp_revenue) AS kenp_revenue,
-      SUM({SERIES_PROFIT_EXPR}) AS series_profit
+      MAX(m.ebook_value_per_unit) AS ebook_value_per_unit,
+      MAX(m.kenp_value_per_unit) AS kenp_value_per_unit,
+      MAX(m.pod_value_per_unit) AS pod_value_per_unit
     FROM `marketing-489109.facebook_ads.ads_sales_analytics` a
     LEFT JOIN `marketing-489109.facebook_ads.series_multipliers` m
       ON a.Series = m.Series AND a.Territory = m.Territory
+    LEFT JOIN `storm-pub-amazon-sales.airtable.awe_editions` e
+      ON a.Edition_ID = e.ID
     WHERE DATE_TRUNC(a.date_start, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
+     AND NOT (a.ebook_units > 0 AND a.ebook_revenue = 0)
     GROUP BY a.Title, a.Edition_ID, a.Territory, a.Series, a.Series_No,
-             a.Genre, a.Genre_Subgenre
+             a.Genre, a.Genre_Subgenre, e.Cover_Author
     """
 
     # Monthly history: last 12 calendar months, one row per month × campaign
+    # NOW INCLUDING clicks and impressions
     history_query = f"""
     SELECT
       DATE_TRUNC(a.date_start, MONTH) AS year_month,
       a.Title, a.Edition_ID, a.Territory,
       a.Series, a.Series_No, a.Genre, a.Genre_Subgenre,
+      e.Cover_Author,
       SUM(a.spend) AS spend,
+      SUM(a.clicks) AS clicks,
+      SUM(a.impressions) AS impressions,
       SUM(a.ebook_units) AS ebook_units,
       SUM(a.paperback_units) AS paperback_units,
       SUM(a.kenp) AS kenp,
       SUM(a.ebook_revenue) AS ebook_revenue,
       SUM(a.paperback_revenue) AS paperback_revenue,
       SUM(a.kenp_revenue) AS kenp_revenue,
-      SUM({SERIES_PROFIT_EXPR}) AS series_profit
+      MAX(m.ebook_value_per_unit) AS ebook_value_per_unit,
+      MAX(m.kenp_value_per_unit) AS kenp_value_per_unit,
+      MAX(m.pod_value_per_unit) AS pod_value_per_unit
     FROM `marketing-489109.facebook_ads.ads_sales_analytics` a
     LEFT JOIN `marketing-489109.facebook_ads.series_multipliers` m
       ON a.Series = m.Series AND a.Territory = m.Territory
-    WHERE a.date_start >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 11 MONTH)
+    LEFT JOIN `storm-pub-amazon-sales.airtable.awe_editions` e
+      ON a.Edition_ID = e.ID
+    WHERE a.date_start >= '2020-01-01'
+     AND NOT (a.ebook_units > 0 AND a.ebook_revenue = 0)
     GROUP BY year_month, a.Title, a.Edition_ID, a.Territory, a.Series, a.Series_No,
-             a.Genre, a.Genre_Subgenre
+             a.Genre, a.Genre_Subgenre, e.Cover_Author
     """
 
     running_df = client.query(running_query).to_dataframe()
@@ -188,6 +201,13 @@ def _str_or_none(v):
 def _campaign_row(row):
     """Convert one DataFrame row into a campaign dict (book × territory)."""
     spend = _num(row.get("spend"))
+    clicks = _num(row.get("clicks"))
+    impressions = _num(row.get("impressions"))
+    
+    ebook_units = _num(row.get("ebook_units"))
+    paperback_units = _num(row.get("paperback_units"))
+    kenp = _num(row.get("kenp"))
+    
     ebook_rev = _num(row.get("ebook_revenue"))
     pb_rev = _num(row.get("paperback_revenue"))
     kenp_rev = _num(row.get("kenp_revenue"))
@@ -195,16 +215,33 @@ def _campaign_row(row):
     pub_rev = revenue * 0.5
     gross_profit = pub_rev - spend
 
-    series_profit_raw = row.get("series_profit")
-    if pd.isna(series_profit_raw):
-        series_profit = None
-        series_roi = None
-    else:
-        series_profit = float(series_profit_raw)
-        series_roi = _roi(series_profit, spend)
+    # Calculate CPC and CTR
+    cpc = (spend / clicks) if clicks > 0 else None
+    ctr = ((clicks / impressions) * 100) if impressions > 0 else None
 
+    # Calculate series profit CORRECTLY (only for Book 1)
     series_no_raw = row.get("Series_No")
     series_no = None if pd.isna(series_no_raw) else int(series_no_raw)
+    
+    series_profit = None
+    series_roi = None
+    
+    if series_no == 1:
+        # Get the multiplier values
+        ebook_value = _num(row.get("ebook_value_per_unit"))
+        kenp_value = _num(row.get("kenp_value_per_unit"))
+        pod_value = _num(row.get("pod_value_per_unit"))
+        
+        # Calculate series value: total_units * value_per_unit for each channel
+        series_value = (
+            (ebook_units * ebook_value) +
+            (paperback_units * pod_value) +
+            (kenp * kenp_value)
+        ) * 0.5  # Publisher's 50% share
+        
+        # Series profit = series_value - spend
+        series_profit = series_value - spend
+        series_roi = _roi(series_profit, spend)
 
     edition_raw = row.get("Edition_ID")
     edition_id = None if pd.isna(edition_raw) else int(edition_raw)
@@ -214,15 +251,20 @@ def _campaign_row(row):
         run_days = int(row["run_days"])
 
     return {
-        "title": _str_or_none(row.get("Title")) or "",
+        "title": _str_or_none(row.get("Title")),
         "edition_id": edition_id,
-        "territory": _str_or_none(row.get("Territory")) or "",
+        "territory": _str_or_none(row.get("Territory")),
         "series": _str_or_none(row.get("Series")),
         "series_no": series_no,
-        "genre": _str_or_none(row.get("Genre")) or "",
-        "genre_subgenre": _str_or_none(row.get("Genre_Subgenre")) or "",
+        "genre": _str_or_none(row.get("Genre")),
+        "genre_subgenre": _str_or_none(row.get("Genre_Subgenre")),
+        "author": _str_or_none(row.get("Cover_Author")),
         "run_days": run_days,
         "spend": _round(spend),
+        "clicks": _round(clicks, 0),
+        "impressions": _round(impressions, 0),
+        "cpc": _round(cpc, 3),
+        "ctr": _round(ctr, 2),
         "revenue": _round(revenue),
         "pub_revenue": _round(pub_rev),
         "gross_profit": _round(gross_profit),
@@ -235,9 +277,15 @@ def _campaign_row(row):
 def _summarize(rows):
     """Aggregate a list of campaign dicts into a summary block."""
     spend = sum(_num(r["spend"]) for r in rows)
+    clicks = sum(_num(r["clicks"]) for r in rows)
+    impressions = sum(_num(r["impressions"]) for r in rows)
     revenue = sum(_num(r["revenue"]) for r in rows)
     pub_rev = sum(_num(r["pub_revenue"]) for r in rows)
     gross_profit = sum(_num(r["gross_profit"]) for r in rows)
+
+    # Calculate aggregate CPC and CTR
+    cpc = (spend / clicks) if clicks > 0 else None
+    ctr = ((clicks / impressions) * 100) if impressions > 0 else None
 
     book1 = [r for r in rows if r.get("series_no") == 1 and r.get("series_profit") is not None]
     standalone = [r for r in rows if not (r.get("series_no") == 1 and r.get("series_profit") is not None)]
@@ -250,6 +298,10 @@ def _summarize(rows):
 
     return {
         "spend": _round(spend),
+        "clicks": _round(clicks, 0),
+        "impressions": _round(impressions, 0),
+        "cpc": _round(cpc, 3),
+        "ctr": _round(ctr, 2),
         "revenue": _round(revenue),
         "pub_revenue": _round(pub_rev),
         "gross_profit": _round(gross_profit),
@@ -294,7 +346,7 @@ def build_output(running_df, month_df, history_df):
         )
     )
 
-    # Current month
+    # Current month - ALL campaigns (running + ended)
     month_rows = [_campaign_row(r) for _, r in month_df.iterrows()]
     month_summary = _summarize(month_rows)
     month_top_series = _top_n(month_rows, "series_roi", n=10, book1_only=True)
@@ -364,6 +416,7 @@ def build_output(running_df, month_df, history_df):
         "month_label": _month_label(date.today().replace(day=1)),
         "month_summary": month_summary,
         "running": running,
+        "month_campaigns": month_rows,  # Add ALL month campaigns for filtering
         "month_top_series_roi": month_top_series,
         "month_top_gross_roi": month_top_gross,
         "month_by_genre": month_by_genre,
@@ -386,10 +439,6 @@ def run_pipeline():
     with open("ads_overview_data.json", "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, default=str)
 
-    print("Writing ads_overview_data.json...")
-    with open("ads_overview_data.json", "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, default=str)
-
     # ── Build standalone HTML and upload to GCS ──
     print("Building standalone HTML...")
     from google.cloud import storage as gcs
@@ -398,7 +447,7 @@ def run_pipeline():
         html = f.read()
 
     json_str = json.dumps(output, indent=2, default=str)
-    old_tag = '<script src="ads_overview_data.js" onerror="console.log(\'No .js file found\')"></script>'
+    old_tag = '<script src="ads_overview_data.js"></script>'
     new_tag = '<script>var DATA = ' + json_str + ';</script>'
     html = html.replace(old_tag, new_tag)
 
@@ -415,12 +464,12 @@ def run_pipeline():
 
     ms = output["month_summary"]
 
-    
-
-    
     print()
     print(f"── {output['month_label']} summary ──")
     print(f"  Spend:          £{ms['spend']:,.0f}")
+    print(f"  Clicks:         {ms['clicks']:,.0f}")
+    print(f"  CPC:            £{ms['cpc']:.3f}")
+    print(f"  CTR:            {ms['ctr']:.2f}%")
     print(f"  Revenue:        £{ms['revenue']:,.0f}")
     print(f"  Gross profit:   £{ms['gross_profit']:,.0f}  ({ms['gross_roi']}% ROI)")
     if ms['series_spend']:
@@ -428,7 +477,7 @@ def run_pipeline():
         print(f"  Series profit:  £{ms['series_profit']:,.0f}  ({ms['series_roi']}% ROI)")
     print()
     print(f"── Running campaigns: {len(output['running'])} ──")
-    for r in output["running"]:
+    for r in output["running"][:10]:
         tag = f"B1 Series ROI {r['series_roi']}%" if r.get("series_roi") is not None else f"Gross ROI {r['gross_roi']}%"
         print(f"  {r['territory']:<2}  {r['title'][:40]:<40}  {tag}")
     print()
