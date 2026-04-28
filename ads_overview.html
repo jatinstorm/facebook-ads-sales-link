@@ -516,6 +516,17 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
 </head>
 <body>
 
+<nav style="position:sticky;top:0;z-index:100;background:rgba(12,10,15,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:52px;">
+  <a href="/home" style="font-family:'Syne',sans-serif;font-size:13px;color:#9999b5;text-decoration:none;display:flex;align-items:center;gap:8px;" onmouseover="this.style.color='#e8e8f0'" onmouseout="this.style.color='#9999b5'">← Home</a>
+  <div style="position:relative;">
+    <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'" style="background:none;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:6px 14px;color:#9999b5;font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;">Dashboards ▾</button>
+    <div style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:#1c1c2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:8px;min-width:200px;box-shadow:0 16px 40px rgba(0,0,0,0.4);">
+      <a href="/ads" style="display:block;padding:10px 14px;color:#e8e8f0;text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">📊 Ads Overview</a>
+      <a href="/series" style="display:block;padding:10px 14px;color:#e8e8f0;text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">📈 Series Projections</a>
+    </div>
+  </div>
+</nav>
+
 <div class="header">
   <div class="header-top">
     <div>
@@ -1448,6 +1459,12 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     }
     return num.toFixed(2);
   }
+  
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('nav')) {
+      document.querySelectorAll('nav div div').forEach(d => d.style.display = 'none');
+    }
+  });
   
   function formatMonthLabel(dateStr) {
     const date = new Date(dateStr);
