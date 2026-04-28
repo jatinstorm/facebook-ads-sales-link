@@ -392,6 +392,11 @@ def build_output(running_df, month_df, history_df):
             continue
         rows = history_by_month[ym]
         s = _summarize(rows)
+        # Keep all campaigns for author/genre/series filtering in the dashboard
+        all_campaigns = [dict(r) for r in rows]
+        for c in all_campaigns:
+            c.pop("_year_month", None)
+        # Also keep a top-5 highlight list for legacy display
         top = _top_n(rows, "series_roi", n=5, book1_only=True)
         if not top:
             top = _top_n(rows, "gross_roi", n=5)
@@ -401,7 +406,8 @@ def build_output(running_df, month_df, history_df):
             "month": ym,
             "label": _month_label(ym),
             **s,
-            "top_campaigns": top,
+            "campaigns_data": all_campaigns,  # Full list for filtering
+            "top_campaigns": top,             # Top 5 for display/legacy
         })
 
     latest_date = None

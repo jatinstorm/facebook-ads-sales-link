@@ -18,6 +18,7 @@ def get_sales(asins, isbns):
     FROM `storm-pub-amazon-sales.daily_sales.daily_sales_ebook_agg`
     WHERE Royalty_Date = DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
     AND ASIN IN ({asin_list})
+    AND Royalty_GBP > 0
     GROUP BY ASIN, sale_date , Territory
     """
 

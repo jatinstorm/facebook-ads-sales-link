@@ -848,17 +848,23 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     const series = new Set();
     
     DATA.history.forEach(month => {
-      // Extract year from month date
       const year = new Date(month.month).getFullYear();
       years.add(year);
-      
-      month.top_campaigns.forEach(campaign => {
+
+      // Use full campaigns_data if available, fall back to top_campaigns
+      const historyCampaigns = month.campaigns_data || month.top_campaigns || [];
+      historyCampaigns.forEach(campaign => {
         if (campaign.author) authors.add(campaign.author);
         if (campaign.genre) genres.add(campaign.genre);
         if (campaign.series) series.add(campaign.series);
       });
     });
-    
+
+    [...(DATA.running || []), ...(DATA.month_campaigns || [])].forEach(campaign => {
+      if (campaign.author) authors.add(campaign.author);
+      if (campaign.genre) genres.add(campaign.genre);
+      if (campaign.series) series.add(campaign.series);
+    });
     // Populate year filter
     const yearFilter = document.getElementById('yearFilter');
     Array.from(years).sort((a, b) => b - a).forEach(year => {
@@ -1008,13 +1014,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
       outlierNote.style.display = 'none';
     }
     
-    // Cap series profit at reasonable bound for visualization
-    const cappedSeriesProfit = seriesProfit.map((val, idx) => {
-      if (outlierInfo.hasOutliers && val > outlierInfo.upperBound) {
-        return outlierInfo.upperBound;
-      }
-      return val;
-    });
+
     
     financialChart = new Chart(ctx, {
       type: 'bar',
@@ -1045,8 +1045,8 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             order: 2
           },
           {
-            label: 'Series Profit' + (outlierInfo.hasOutliers ? ' (capped)' : ''),
-            data: cappedSeriesProfit,
+            label: 'Series Profit',
+            data: seriesProfit,
             borderColor: '#00d4aa',
             backgroundColor: 'rgba(0, 212, 170, 0.1)',
             borderWidth: 3,
@@ -1126,34 +1126,38 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
       data: {
         labels: labels,
         datasets: [
-          {
-            label: 'Clicks',
-            data: clicks,
-            backgroundColor: '#6c8fff',
-            borderRadius: 6,
-            yAxisID: 'y'
-          },
-          {
-            label: 'CPC (£)',
-            data: cpc,
-            type: 'line',
-            borderColor: '#ff6b9d',
-            backgroundColor: 'rgba(255, 107, 157, 0.1)',
-            borderWidth: 3,
-            tension: 0.4,
-            yAxisID: 'y1'
-          },
-          {
-            label: 'CTR (%)',
-            data: ctr,
-            type: 'line',
-            borderColor: '#ffd93d',
-            backgroundColor: 'rgba(255, 217, 61, 0.1)',
-            borderWidth: 3,
-            tension: 0.4,
-            yAxisID: 'y2'
-          }
-        ]
+  {
+    label: 'Clicks',
+    data: clicks,
+    backgroundColor: '#6c8fff',
+    borderRadius: 6,
+    yAxisID: 'y',
+    order: 3 // draw first (behind)
+  },
+  {
+    label: 'CPC (£)',
+    data: cpc,
+    type: 'line',
+    borderColor: '#ff6b9d',
+    backgroundColor: 'rgba(255, 107, 157, 0.1)',
+    borderWidth: 3,
+    tension: 0.4,
+    yAxisID: 'y1',
+    order: 1 // draw on top
+  },
+  {
+    label: 'CTR (%)',
+    data: ctr,
+    type: 'line',
+    borderColor: '#ffd93d',
+    backgroundColor: 'rgba(255, 217, 61, 0.1)',
+    borderWidth: 3,
+    tension: 0.4,
+    yAxisID: 'y2',
+    order: 1 // draw on top
+  }
+]
+      
       },
       options: {
         responsive: true,
@@ -1388,7 +1392,8 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
       let campaignCount = month.campaigns || 0;
       
       if (territory !== 'all' || author !== 'all' || genre !== 'all' || series !== 'all') {
-        let campaigns = month.top_campaigns || [];
+        // Use full campaigns_data if available; top_campaigns is only top-5 and will give wrong totals
+        let campaigns = month.campaigns_data || month.top_campaigns || [];
         
         if (territory !== 'all') {
           campaigns = campaigns.filter(c => c.territory === territory);
