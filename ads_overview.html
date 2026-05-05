@@ -509,6 +509,34 @@ tbody tr:hover {
   font-size: 13px;
   color: var(--accent);
 }
+th.sort-active {
+  color: var(--accent);
+}
+
+.month-pill {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.month-pill:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--surface-elevated);
+}
+.month-pill.active {
+  background: rgba(0, 212, 170, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: rgba(0,212,170,0.06); }
 
@@ -538,6 +566,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
   <div class="tabs">
     <button class="tab active" data-tab="overview">Overview</button>
     <button class="tab" data-tab="current-month">Current Month</button>
+    <button class="tab" data-tab="authors">Authors</button>
     <button class="tab" data-tab="historical">Historical</button>
   </div>
 </div>
@@ -718,11 +747,151 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     
   </div>
   
-  <div id="historical" class="tab-content">
-    <h2>Historical - Coming Soon</h2>
-    <p style="color: var(--text-secondary); margin-top: 16px;">This tab will show historical performance analysis.</p>
+  <!-- ── Authors Tab ── -->
+  <div id="authors" class="tab-content">
+
+    <div style="margin-bottom: 32px;">
+      <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 8px;">Author Spend &amp; Performance</h2>
+      <p style="color: var(--text-secondary); font-size: 14px;">Aggregated by author for the current calendar month. Click any row to see campaigns.</p>
+    </div>
+
+    <!-- Author filters -->
+    <div class="filters" style="margin-bottom: 24px;">
+      <div class="filter-group">
+        <span class="filter-label">Territory</span>
+        <select id="authorTabTerritoryFilter">
+          <option value="all">All</option>
+          <option value="US">US</option>
+          <option value="GB">GB</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Genre</span>
+        <select id="authorTabGenreFilter">
+          <option value="all">All Genres</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Author summary metrics -->
+    <div class="metrics-grid" id="authorTabMetrics">
+      <div class="loading">Loading...</div>
+    </div>
+
+    <!-- Author table -->
+    <div style="margin-bottom: 32px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 18px; font-weight: 600; color: var(--text-primary);">
+          Author Spend — This Month
+        </h3>
+        <div style="color: var(--text-muted); font-size: 13px;" id="authorTabCount">0 authors</div>
+      </div>
+      <div id="authorTable" class="table-wrap">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+
   </div>
-  
+
+  <!-- ── Historical Tab ── -->
+  <div id="historical" class="tab-content">
+
+    <div style="margin-bottom: 28px;">
+      <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 8px;">Historical Months</h2>
+      <p style="color: var(--text-secondary); font-size: 14px;">Select a month to see all campaigns and performance for that period.</p>
+    </div>
+
+    <!-- Month selector pills -->
+    <div id="histMonthPills" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px;"></div>
+
+    <!-- Per-month content (hidden until a month is selected) -->
+    <div id="histMonthContent" style="display: none;">
+
+      <!-- Month title + back -->
+      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 28px;">
+        <button id="histBackBtn" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-secondary); padding: 6px 14px; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 13px; cursor: pointer;">&#8592; Back</button>
+        <h3 id="histMonthTitle" style="font-size: 20px; font-weight: 700;"></h3>
+      </div>
+
+      <!-- Summary metrics -->
+      <div class="metrics-grid" id="histMetrics" style="margin-bottom: 32px;"></div>
+
+      <!-- Filters -->
+      <div class="filters" style="margin-bottom: 24px;">
+        <div class="filter-group">
+          <span class="filter-label">Territory</span>
+          <select id="histTerritoryFilter">
+            <option value="all">All</option>
+            <option value="US">US</option>
+            <option value="GB">GB</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Author</span>
+          <select id="histAuthorFilter"><option value="all">All Authors</option></select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Genre</span>
+          <select id="histGenreFilter"><option value="all">All Genres</option></select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Book Type</span>
+          <select id="histBookTypeFilter">
+            <option value="all">All</option>
+            <option value="book1">Book 1 Only</option>
+            <option value="other">Non-Book 1</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Campaigns table -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 18px; font-weight: 600;">All Campaigns &#8212; Ranked by ROI</h3>
+        <div id="histCampaignCount" style="color: var(--text-muted); font-size: 13px;"></div>
+      </div>
+      <div id="histCampaignsTable" class="table-wrap"></div>
+
+    </div>
+
+    <!-- Empty state shown when no month selected -->
+    <div id="histEmptyState" style="color: var(--text-muted); font-size: 14px; margin-top: 8px;">
+      Select a month above to view its campaigns.
+    </div>
+
+  </div>
+
+
+<!-- Author Drilldown Modal -->
+<div class="modal-overlay" id="authorDrillModal">
+  <div class="modal" style="max-width: 1000px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="drillAuthorName">Author</div>
+        <div class="modal-subtitle" id="drillSubtitle"></div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('authorDrillModal').classList.remove('open')">✕</button>
+    </div>
+    <div id="drillHighlight" class="modal-highlight"></div>
+    <div class="table-wrap">
+      <table id="drillTable">
+        <thead>
+          <tr>
+            <th>Campaign</th>
+            <th>Status</th>
+            <th class="right">Spend</th>
+            <th class="right">Clicks</th>
+            <th class="right">CPC</th>
+            <th class="right">CTR</th>
+            <th class="right">Revenue</th>
+            <th class="right">Gross ROI</th>
+            <th class="right">Series ROI</th>
+          </tr>
+        </thead>
+        <tbody id="drillTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <!-- Author Comparison Modal -->
 <div class="modal-overlay" id="authorModal">
@@ -827,6 +996,12 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     // Initialize tab-specific content
     if (tabName === 'current-month') {
       renderCurrentMonthTab();
+    }
+    if (tabName === 'authors') {
+      renderAuthorTab();
+    }
+    if (tabName === 'historical') {
+      renderHistoricalTab();
     }
   }
   
@@ -1823,6 +1998,395 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     return campaigns;
   }
   
+  // ══════════════════════════════════════════════════════════════
+  // HISTORICAL TAB
+  // ══════════════════════════════════════════════════════════════
+
+  let histSelectedMonth = null; // the month key currently selected
+
+  function renderHistoricalTab() {
+    if (!DATA || !DATA.history || DATA.history.length === 0) {
+      document.getElementById('histEmptyState').textContent = 'No historical data available.';
+      return;
+    }
+
+    // Build pills (sorted newest → oldest, already the order in DATA.history)
+    const pillsContainer = document.getElementById('histMonthPills');
+    if (pillsContainer.children.length === 0) {
+      DATA.history.forEach(h => {
+        const btn = document.createElement('button');
+        btn.className = 'month-pill';
+        btn.textContent = h.label;
+        btn.dataset.month = h.month;
+        btn.addEventListener('click', () => selectHistMonth(h.month));
+        pillsContainer.appendChild(btn);
+      });
+    }
+
+    // If a month was previously selected keep it shown, otherwise show empty state
+    if (histSelectedMonth) {
+      selectHistMonth(histSelectedMonth);
+    }
+  }
+
+  function selectHistMonth(monthKey) {
+    histSelectedMonth = monthKey;
+
+    // Update pill active state
+    document.querySelectorAll('.month-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.month === monthKey);
+    });
+
+    const histData = DATA.history.find(h => h.month === monthKey);
+    if (!histData) return;
+
+    document.getElementById('histEmptyState').style.display = 'none';
+    document.getElementById('histMonthContent').style.display = 'block';
+    document.getElementById('histMonthTitle').textContent = histData.label;
+
+    // Summary metrics
+    const s = histData;
+    const grossRoiClass = (s.gross_roi || 0) >= 0 ? 'positive' : 'negative';
+    const seriesRoiClass = (s.series_roi || 0) >= 0 ? 'positive' : 'negative';
+    document.getElementById('histMetrics').innerHTML = `
+      <div class="metric-card"><div class="metric-label">Total Spend</div><div class="metric-value mono">£${formatCurrency(s.spend || 0)}</div><div class="metric-sub">${s.campaigns || 0} campaigns</div></div>
+      <div class="metric-card"><div class="metric-label">Clicks</div><div class="metric-value mono">${s.clicks ? formatNumber(s.clicks) : 'N/A'}</div><div class="metric-sub">${s.cpc ? '£' + s.cpc.toFixed(3) + ' CPC' : ''}</div></div>
+      <div class="metric-card"><div class="metric-label">CTR</div><div class="metric-value mono">${s.ctr ? s.ctr.toFixed(2) + '%' : 'N/A'}</div><div class="metric-sub">${s.impressions ? formatNumber(s.impressions) + ' imp' : ''}</div></div>
+      <div class="metric-card"><div class="metric-label">Gross ROI</div><div class="metric-value mono ${grossRoiClass}">${s.gross_roi != null ? s.gross_roi.toFixed(1) + '%' : 'N/A'}</div><div class="metric-sub">£${formatCurrency(s.gross_profit || 0)} profit</div></div>
+      <div class="metric-card"><div class="metric-label">Series ROI</div><div class="metric-value mono ${seriesRoiClass}">${s.series_roi != null ? s.series_roi.toFixed(1) + '%' : 'N/A'}</div><div class="metric-sub">${s.series_campaigns || 0} Book 1 campaigns</div></div>
+      <div class="metric-card"><div class="metric-label">Revenue</div><div class="metric-value mono">£${formatCurrency(s.revenue || 0)}</div></div>
+    `;
+
+    // Populate filters from this month's campaigns
+    const campaigns = histData.campaigns_data || histData.top_campaigns || [];
+    populateHistFilters(campaigns);
+
+    // Render table (respects filters)
+    renderHistTable(histData);
+
+    // Back button
+    document.getElementById('histBackBtn').onclick = () => {
+      histSelectedMonth = null;
+      document.getElementById('histMonthContent').style.display = 'none';
+      document.getElementById('histEmptyState').style.display = 'block';
+      document.getElementById('histEmptyState').textContent = 'Select a month above to view its campaigns.';
+      document.querySelectorAll('.month-pill').forEach(p => p.classList.remove('active'));
+    };
+
+    // Filter listeners
+    ['histTerritoryFilter', 'histAuthorFilter', 'histGenreFilter', 'histBookTypeFilter'].forEach(id => {
+      const el = document.getElementById(id);
+      el.onchange = () => renderHistTable(histData);
+    });
+  }
+
+  function populateHistFilters(campaigns) {
+    const authors = new Set();
+    const genres  = new Set();
+    campaigns.forEach(c => {
+      if (c.author) authors.add(c.author);
+      if (c.genre)  genres.add(c.genre);
+    });
+
+    const authorSel = document.getElementById('histAuthorFilter');
+    authorSel.innerHTML = '<option value="all">All Authors</option>';
+    Array.from(authors).sort().forEach(a => {
+      const o = document.createElement('option'); o.value = a; o.textContent = a;
+      authorSel.appendChild(o);
+    });
+
+    const genreSel = document.getElementById('histGenreFilter');
+    genreSel.innerHTML = '<option value="all">All Genres</option>';
+    Array.from(genres).sort().forEach(g => {
+      const o = document.createElement('option'); o.value = g; o.textContent = g;
+      genreSel.appendChild(o);
+    });
+
+    // Reset selects
+    document.getElementById('histTerritoryFilter').value = 'all';
+    document.getElementById('histBookTypeFilter').value  = 'all';
+  }
+
+  function renderHistTable(histData) {
+    const territory = document.getElementById('histTerritoryFilter').value;
+    const author    = document.getElementById('histAuthorFilter').value;
+    const genre     = document.getElementById('histGenreFilter').value;
+    const bookType  = document.getElementById('histBookTypeFilter').value;
+
+    let campaigns = (histData.campaigns_data || histData.top_campaigns || []).filter(c => {
+      if (territory !== 'all' && c.territory !== territory) return false;
+      if (author    !== 'all' && c.author    !== author)    return false;
+      if (genre     !== 'all' && c.genre     !== genre)     return false;
+      if (bookType === 'book1' && c.series_no !== 1)        return false;
+      if (bookType === 'other' && c.series_no === 1)        return false;
+      return true;
+    });
+
+    // Sort by best ROI (series ROI for Book 1, otherwise gross ROI)
+    campaigns = [...campaigns].sort((a, b) => {
+      const aRoi = a.series_roi != null ? a.series_roi : (a.gross_roi || -9999);
+      const bRoi = b.series_roi != null ? b.series_roi : (b.gross_roi || -9999);
+      return bRoi - aRoi;
+    });
+
+    document.getElementById('histCampaignCount').textContent =
+      campaigns.length + ' campaign' + (campaigns.length !== 1 ? 's' : '');
+
+    if (campaigns.length === 0) {
+      document.getElementById('histCampaignsTable').innerHTML =
+        '<div class="loading">No campaigns match filters</div>';
+      return;
+    }
+
+    const rows = campaigns.map(c => {
+      const grossClass = c.gross_roi != null ? (c.gross_roi >= 0 ? 'positive' : 'negative') : '';
+      const serClass   = c.series_roi != null ? (c.series_roi >= 0 ? 'positive' : 'negative') : '';
+      return `<tr>
+        <td>
+          <div class="campaign-title">${c.title || ''}</div>
+          <div class="campaign-meta">${c.author || 'Unknown'} &bull; ${c.territory || ''} &bull; ${c.genre || 'Unknown'}${c.series_no === 1 ? ' &bull; Book 1' : ''}</div>
+        </td>
+        <td class="right">£${formatCurrency(c.spend || 0)}</td>
+        <td class="right">${c.clicks ? formatNumber(c.clicks) : '-'}</td>
+        <td class="right">${c.cpc   != null ? '£' + c.cpc.toFixed(3) : '-'}</td>
+        <td class="right">${c.ctr   != null ? c.ctr.toFixed(2) + '%' : '-'}</td>
+        <td class="right">£${formatCurrency(c.revenue || 0)}</td>
+        <td class="right ${grossClass}">${c.gross_roi != null ? c.gross_roi.toFixed(1) + '%' : '-'}</td>
+        <td class="right ${serClass}">${c.series_roi != null ? c.series_roi.toFixed(1) + '%' : '-'}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('histCampaignsTable').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Campaign</th>
+          <th class="right">Spend</th>
+          <th class="right">Clicks</th>
+          <th class="right">CPC</th>
+          <th class="right">CTR</th>
+          <th class="right">Revenue</th>
+          <th class="right">Gross ROI</th>
+          <th class="right">Series ROI</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  // ─── Author Tab ────────────────────────────────────────────────────────────
+
+  let authorSortKey = 'spend';
+  let authorSortDir = -1; // -1 = desc, 1 = asc
+
+  function renderAuthorTab() {
+    // Populate genre filter (once)
+    const genreSelect = document.getElementById('authorTabGenreFilter');
+    if (genreSelect.options.length === 1) {
+      const genres = new Set();
+      (DATA.month_campaigns || []).forEach(c => { if (c.genre) genres.add(c.genre); });
+      Array.from(genres).sort().forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g; opt.textContent = g;
+        genreSelect.appendChild(opt);
+      });
+      genreSelect.addEventListener('change', renderAuthorTab);
+      document.getElementById('authorTabTerritoryFilter').addEventListener('change', renderAuthorTab);
+    }
+
+    const territory = document.getElementById('authorTabTerritoryFilter').value;
+    const genre     = document.getElementById('authorTabGenreFilter').value;
+
+    let campaigns = (DATA.month_campaigns || []).filter(c => {
+      if (territory !== 'all' && c.territory !== territory) return false;
+      if (genre !== 'all' && c.genre !== genre) return false;
+      return true;
+    });
+
+    // Roll up by author
+    const authorMap = {};
+    campaigns.forEach(c => {
+      const key = c.author || 'Unknown';
+      if (!authorMap[key]) {
+        authorMap[key] = { author: key, campaigns: [], spend: 0, clicks: 0, impressions: 0,
+          gross_profit: 0, series_spend: 0, series_profit: 0, revenue: 0 };
+      }
+      const a = authorMap[key];
+      a.campaigns.push(c);
+      a.spend       += (c.spend       || 0);
+      a.clicks      += (c.clicks      || 0);
+      a.impressions += (c.impressions || 0);
+      a.gross_profit+= (c.gross_profit|| 0);
+      a.revenue     += (c.revenue     || 0);
+      if (c.series_no === 1 && c.series_profit != null) {
+        a.series_spend  += (c.spend          || 0);
+        a.series_profit += (c.series_profit  || 0);
+      }
+    });
+
+    // Get KDP revenue per author from DATA.month_author_kdp if available
+    const kdpMap = {};
+    if (DATA.month_author_kdp) {
+      DATA.month_author_kdp.forEach(row => {
+        kdpMap[row.author] = (row.kdp_revenue || 0);
+      });
+    }
+
+    const rows = Object.values(authorMap).map(a => {
+      const cpc = a.clicks > 0 ? a.spend / a.clicks : null;
+      const ctr = a.impressions > 0 ? (a.clicks / a.impressions * 100) : null;
+      const gross_roi = a.spend > 0 ? (a.gross_profit / a.spend * 100) : null;
+      const series_roi = a.series_spend > 0 ? (a.series_profit / a.series_spend * 100) : null;
+      const kdp_revenue = kdpMap[a.author] !== undefined ? kdpMap[a.author] : null;
+      const spend_pct_kdp = (kdp_revenue && kdp_revenue > 0) ? (a.spend / kdp_revenue * 100) : null;
+      return { ...a, cpc, ctr, gross_roi, series_roi, kdp_revenue, spend_pct_kdp };
+    });
+
+    // Render summary metrics
+    const totalSpend    = rows.reduce((s, r) => s + r.spend, 0);
+    const totalClicks   = rows.reduce((s, r) => s + r.clicks, 0);
+    const totalRevenue  = rows.reduce((s, r) => s + r.revenue, 0);
+    const avgCpc        = totalClicks > 0 ? totalSpend / totalClicks : 0;
+    const totalImpr     = rows.reduce((s, r) => s + r.impressions, 0);
+    const avgCtr        = totalImpr > 0 ? (totalClicks / totalImpr * 100) : 0;
+
+    document.getElementById('authorTabMetrics').innerHTML = `
+      <div class="metric-card"><div class="metric-label">Authors</div><div class="metric-value">${rows.length}</div></div>
+      <div class="metric-card"><div class="metric-label">Total Spend</div><div class="metric-value mono">£${formatCurrency(totalSpend)}</div></div>
+      <div class="metric-card"><div class="metric-label">Total Clicks</div><div class="metric-value mono">${formatNumber(totalClicks)}</div></div>
+      <div class="metric-card"><div class="metric-label">Avg CPC</div><div class="metric-value mono">£${avgCpc.toFixed(3)}</div></div>
+      <div class="metric-card"><div class="metric-label">Avg CTR</div><div class="metric-value mono">${avgCtr.toFixed(2)}%</div></div>
+      <div class="metric-card"><div class="metric-label">Total Revenue</div><div class="metric-value mono">£${formatCurrency(totalRevenue)}</div></div>
+    `;
+
+    // Sort
+    const sorted = [...rows].sort((a, b) => {
+      let av = a[authorSortKey], bv = b[authorSortKey];
+      if (av == null) av = authorSortDir === -1 ? -Infinity : Infinity;
+      if (bv == null) bv = authorSortDir === -1 ? -Infinity : Infinity;
+      if (typeof av === 'string') return authorSortDir * av.localeCompare(bv);
+      return authorSortDir * (bv - av);
+    });
+
+    document.getElementById('authorTabCount').textContent = sorted.length + ' author' + (sorted.length !== 1 ? 's' : '');
+
+    const hasKdp = Object.keys(kdpMap).length > 0;
+
+    const thClass = k => `class="${k === 'author' ? '' : 'right'}${authorSortKey === k ? ' sort-active' : ''}"`;
+    const arrow = k => authorSortKey === k ? (authorSortDir === -1 ? ' ▼' : ' ▲') : '';
+
+    const headers = [
+      { k: 'author',        label: 'Author' },
+      { k: 'clicks',        label: 'Clicks' },
+      { k: 'cpc',           label: 'CPC' },
+      { k: 'ctr',           label: 'CTR' },
+      { k: 'gross_roi',     label: 'Gross ROI' },
+      { k: 'series_roi',    label: 'Series ROI' },
+      { k: 'spend',         label: 'Ad Spend' },
+      ...(hasKdp ? [{ k: 'kdp_revenue', label: 'Author KDP Rev' }, { k: 'spend_pct_kdp', label: 'Spend % KDP' }] : []),
+      { k: '_campaigns',    label: 'Campaigns', noSort: true },
+    ];
+
+    const theadRow = headers.map(h =>
+      h.noSort
+        ? `<th class="right">${h.label}</th>`
+        : `<th ${thClass(h.k)} data-sort="${h.k}" style="cursor:pointer;">${h.label}${arrow(h.k)}</th>`
+    ).join('');
+
+    const tbody = sorted.map(r => {
+      const grossClass = r.gross_roi != null ? (r.gross_roi >= 0 ? 'positive' : 'negative') : '';
+      const serClass   = r.series_roi != null ? (r.series_roi >= 0 ? 'positive' : 'negative') : '';
+      return `<tr class="clickable" data-author="${(r.author||'').replace(/"/g,'&quot;')}">
+        <td><div class="campaign-title">${r.author || 'Unknown'}</div><div class="campaign-meta">${r.campaigns.length} campaign${r.campaigns.length !== 1 ? 's' : ''}</div></td>
+        <td class="right">${r.clicks ? formatNumber(r.clicks) : '-'}</td>
+        <td class="right">${r.cpc != null ? '£' + r.cpc.toFixed(3) : '-'}</td>
+        <td class="right">${r.ctr != null ? r.ctr.toFixed(2) + '%' : '-'}</td>
+        <td class="right ${grossClass}">${r.gross_roi != null ? r.gross_roi.toFixed(1) + '%' : '-'}</td>
+        <td class="right ${serClass}">${r.series_roi != null ? r.series_roi.toFixed(1) + '%' : '-'}</td>
+        <td class="right">£${formatCurrency(r.spend)}</td>
+        ${hasKdp ? `<td class="right">${r.kdp_revenue != null ? '£' + formatCurrency(r.kdp_revenue) : '—'}</td>` : ''}
+        ${hasKdp ? `<td class="right">${r.spend_pct_kdp != null ? r.spend_pct_kdp.toFixed(1) + '%' : '—'}</td>` : ''}
+        <td class="right">${r.campaigns.length}</td>
+      </tr>`;
+    }).join('');
+
+    const tableHTML = `<table><thead><tr>${theadRow}</tr></thead><tbody>${tbody}</tbody></table>`;
+    const container = document.getElementById('authorTable');
+    container.innerHTML = tableHTML;
+
+    // Sort click handlers
+    container.querySelectorAll('th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const k = th.getAttribute('data-sort');
+        if (authorSortKey === k) {
+          authorSortDir *= -1;
+        } else {
+          authorSortKey = k;
+          authorSortDir = k === 'author' ? 1 : -1;
+        }
+        renderAuthorTab();
+      });
+    });
+
+    // Row click → drilldown
+    container.querySelectorAll('tr.clickable').forEach(row => {
+      row.addEventListener('click', () => openAuthorDrilldown(row.dataset.author, rows));
+    });
+  }
+
+  function openAuthorDrilldown(author, authorRows) {
+    const authorData = authorRows ? authorRows.find(r => r.author === author) : null;
+    const campaigns = authorData ? authorData.campaigns : (DATA.month_campaigns || []).filter(c => c.author === author);
+    if (!campaigns || campaigns.length === 0) return;
+
+    const runningKeys = new Set((DATA.running || []).map(r => r.edition_id + '_' + r.territory));
+
+    const sorted = [...campaigns].sort((a, b) => {
+      const aRoi = a.series_roi != null ? a.series_roi : (a.gross_roi || -9999);
+      const bRoi = b.series_roi != null ? b.series_roi : (b.gross_roi || -9999);
+      return bRoi - aRoi;
+    });
+
+    const totalSpend = campaigns.reduce((s, c) => s + (c.spend || 0), 0);
+    const totalClicks = campaigns.reduce((s, c) => s + (c.clicks || 0), 0);
+    const totalImpr   = campaigns.reduce((s, c) => s + (c.impressions || 0), 0);
+    const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
+    const avgCtr = totalImpr > 0 ? (totalClicks / totalImpr * 100) : 0;
+
+    document.getElementById('drillAuthorName').textContent = author;
+    document.getElementById('drillSubtitle').textContent = campaigns.length + ' campaign' + (campaigns.length !== 1 ? 's' : '') + ' this month';
+    document.getElementById('drillHighlight').innerHTML =
+      'Total spend: <strong>£' + formatCurrency(totalSpend) + '</strong> &nbsp;·&nbsp; ' +
+      'Avg CPC: <strong>£' + avgCpc.toFixed(3) + '</strong> &nbsp;·&nbsp; ' +
+      'Avg CTR: <strong>' + avgCtr.toFixed(2) + '%</strong>';
+
+    document.getElementById('drillTableBody').innerHTML = sorted.map(c => {
+      const key = c.edition_id + '_' + c.territory;
+      const isRunning = runningKeys.has(key);
+      return `<tr>
+        <td>
+          <div class="campaign-title">${c.title || ''}</div>
+          <div class="campaign-meta">${c.territory} · ${c.genre || 'Unknown'}${c.series_no === 1 ? ' · Book 1' : ''}${c.series ? ' · ' + c.series : ''}</div>
+        </td>
+        <td><span class="badge ${isRunning ? 'badge-running' : 'badge-ended'}">${isRunning ? 'Running' : 'Ended'}</span></td>
+        <td class="right">£${formatCurrency(c.spend)}</td>
+        <td class="right">${c.clicks ? formatNumber(c.clicks) : '-'}</td>
+        <td class="right">${c.cpc ? '£' + c.cpc.toFixed(3) : '-'}</td>
+        <td class="right">${c.ctr ? c.ctr.toFixed(2) + '%' : '-'}</td>
+        <td class="right">£${formatCurrency(c.revenue)}</td>
+        <td class="right ${c.gross_roi >= 0 ? 'positive' : 'negative'}">${c.gross_roi != null ? c.gross_roi.toFixed(1) + '%' : '-'}</td>
+        <td class="right ${c.series_roi != null ? (c.series_roi >= 0 ? 'positive' : 'negative') : ''}">${c.series_roi != null ? c.series_roi.toFixed(1) + '%' : '-'}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('authorDrillModal').classList.add('open');
+  }
+
+  // Close author drill modal on overlay click
+  document.getElementById('authorDrillModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+
+  // ─── End Author Tab ─────────────────────────────────────────────────────────
+
   function openAuthorModal(author, highlightKey) {
     const allCampaigns = getFilteredMonthCampaigns();
     const authorCampaigns = allCampaigns.filter(c => c.author === author);

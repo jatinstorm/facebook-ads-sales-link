@@ -159,7 +159,26 @@ def get_data():
     month_df = client.query(month_query).to_dataframe()
     history_df = client.query(history_query).to_dataframe()
 
-    return running_df, month_df, history_df
+    # Author KDP Revenue: total KDP revenue per author for current calendar month
+    # from the Daily KDP Data table, used in the Author tab
+    author_kdp_query = f"""
+    SELECT
+      e.Cover_Author AS author,
+      SUM(k.kdp_revenue) AS kdp_revenue
+    FROM `storm-pub-amazon-sales.kdp.daily_kdp_data` k
+    LEFT JOIN `storm-pub-amazon-sales.airtable.awe_editions` e
+      ON k.Edition_ID = e.ID
+    WHERE DATE_TRUNC(k.date, MONTH) = DATE_TRUNC(CURRENT_DATE(), MONTH)
+      AND e.Cover_Author IS NOT NULL
+    GROUP BY e.Cover_Author
+    """
+    try:
+        author_kdp_df = client.query(author_kdp_query).to_dataframe()
+    except Exception as ex:
+        print(f"  Warning: author KDP query failed ({ex}); skipping KDP revenue.")
+        author_kdp_df = pd.DataFrame(columns=["author", "kdp_revenue"])
+
+    return running_df, month_df, history_df, author_kdp_df
 
 
 # ─────────────────────────────────────────────
@@ -335,7 +354,7 @@ def _month_label(d):
 # ─────────────────────────────────────────────
 # STEP 3 — Build the output JSON structure
 # ─────────────────────────────────────────────
-def build_output(running_df, month_df, history_df):
+def build_output(running_df, month_df, history_df, author_kdp_df=None):
     # Running campaigns → list of dicts, sorted
     running = [_campaign_row(r) for _, r in running_df.iterrows()]
     running.sort(
@@ -416,6 +435,15 @@ def build_output(running_df, month_df, history_df):
         if latest is not None and not pd.isna(latest):
             latest_date = latest.isoformat() if hasattr(latest, "isoformat") else str(latest)
 
+    # Author KDP revenue for the Author tab
+    month_author_kdp = []
+    if author_kdp_df is not None and not author_kdp_df.empty:
+        for _, row in author_kdp_df.iterrows():
+            author = _str_or_none(row.get("author"))
+            kdp_rev = _num(row.get("kdp_revenue"))
+            if author:
+                month_author_kdp.append({"author": author, "kdp_revenue": _round(kdp_rev)})
+
     return {
         "generated_at": datetime.now().isoformat(),
         "latest_date": latest_date,
@@ -426,6 +454,7 @@ def build_output(running_df, month_df, history_df):
         "month_top_series_roi": month_top_series,
         "month_top_gross_roi": month_top_gross,
         "month_by_genre": month_by_genre,
+        "month_author_kdp": month_author_kdp,
         "history": history,
     }
 
@@ -435,11 +464,11 @@ def build_output(running_df, month_df, history_df):
 # ─────────────────────────────────────────────
 def run_pipeline():
     print("Fetching data...")
-    running_df, month_df, history_df = get_data()
-    print(f"  running={len(running_df)}, month={len(month_df)}, history={len(history_df)}")
+    running_df, month_df, history_df, author_kdp_df = get_data()
+    print(f"  running={len(running_df)}, month={len(month_df)}, history={len(history_df)}, author_kdp={len(author_kdp_df)}")
 
     print("Building output...")
-    output = build_output(running_df, month_df, history_df)
+    output = build_output(running_df, month_df, history_df, author_kdp_df)
 
     print("Writing ads_overview_data.json...")
     with open("ads_overview_data.json", "w", encoding="utf-8") as f:
@@ -474,8 +503,8 @@ def run_pipeline():
     print(f"── {output['month_label']} summary ──")
     print(f"  Spend:          £{ms['spend']:,.0f}")
     print(f"  Clicks:         {ms['clicks']:,.0f}")
-    print(f"  CPC:            £{ms['cpc']:.3f}")
-    print(f"  CTR:            {ms['ctr']:.2f}%")
+    print(f"  CPC:            £{ms['cpc']:.3f}" if ms['cpc'] is not None else "  CPC:            n/a")
+    print(f"  CTR:            {ms['ctr']:.2f}%" if ms['ctr'] is not None else "  CTR:            n/a")
     print(f"  Revenue:        £{ms['revenue']:,.0f}")
     print(f"  Gross profit:   £{ms['gross_profit']:,.0f}  ({ms['gross_roi']}% ROI)")
     if ms['series_spend']:
