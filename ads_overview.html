@@ -568,6 +568,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     <button class="tab" data-tab="current-month">Current Month</button>
     <button class="tab" data-tab="authors">Authors</button>
     <button class="tab" data-tab="historical">Historical</button>
+    <button class="tab" data-tab="series">Series</button>
   </div>
 </div>
 
@@ -750,9 +751,18 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
   <!-- ── Authors Tab ── -->
   <div id="authors" class="tab-content">
 
-    <div style="margin-bottom: 32px;">
+    <div style="margin-bottom: 24px;">
       <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 8px;">Author Spend &amp; Performance</h2>
-      <p style="color: var(--text-secondary); font-size: 14px;">Aggregated by author for the current calendar month. Click any row to see campaigns.</p>
+      <p style="color: var(--text-secondary); font-size: 14px;">Aggregated by author. Click any row to see campaigns.</p>
+    </div>
+
+    <!-- Period selector -->
+    <div class="grouping-options" style="margin-bottom: 24px;">
+      <button class="group-btn active" data-author-period="month">This Month</button>
+      <button class="group-btn" data-author-period="3m">Last 3M</button>
+      <button class="group-btn" data-author-period="6m">Last 6M</button>
+      <button class="group-btn" data-author-period="12m">Last 12M</button>
+      <button class="group-btn" data-author-period="lifetime">Lifetime</button>
     </div>
 
     <!-- Author filters -->
@@ -861,6 +871,92 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
   </div>
 
 
+  <!-- ── Series Tab ── -->
+  <div id="series" class="tab-content">
+
+    <div style="margin-bottom: 24px;">
+      <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 8px;">Series Ad Performance</h2>
+      <p style="color: var(--text-secondary); font-size: 14px;">All campaigns grouped by series — across every book. Click any row to see the per-book breakdown.</p>
+    </div>
+
+    <!-- Period selector -->
+    <div class="grouping-options" style="margin-bottom: 24px;">
+      <button class="group-btn active" data-series-period="month">This Month</button>
+      <button class="group-btn" data-series-period="3m">Last 3M</button>
+      <button class="group-btn" data-series-period="6m">Last 6M</button>
+      <button class="group-btn" data-series-period="12m">Last 12M</button>
+      <button class="group-btn" data-series-period="lifetime">Lifetime</button>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters" style="margin-bottom: 24px;">
+      <div class="filter-group">
+        <span class="filter-label">Territory</span>
+        <select id="seriesTabTerritoryFilter">
+          <option value="all">All</option>
+          <option value="US">US</option>
+          <option value="GB">GB</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Genre</span>
+        <select id="seriesTabGenreFilter">
+          <option value="all">All Genres</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Summary metrics -->
+    <div class="metrics-grid" id="seriesTabMetrics">
+      <div class="loading">Loading...</div>
+    </div>
+
+    <!-- Series table -->
+    <div style="margin-bottom: 32px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 18px; font-weight: 600; color: var(--text-primary);">Series Performance</h3>
+        <div style="color: var(--text-muted); font-size: 13px;" id="seriesTabCount">0 series</div>
+      </div>
+      <div id="seriesTable" class="table-wrap">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+
+  </div>
+
+<!-- Series Drilldown Modal -->
+<div class="modal-overlay" id="seriesDrillModal">
+  <div class="modal" style="max-width: 1100px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="drillSeriesName">Series</div>
+        <div class="modal-subtitle" id="drillSeriesSubtitle"></div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('seriesDrillModal').classList.remove('open')">✕</button>
+    </div>
+    <div id="drillSeriesHighlight" class="modal-highlight"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Book</th>
+            <th class="right">Bk#</th>
+            <th class="right">Territory</th>
+            <th class="right">Spend</th>
+            <th class="right">Clicks</th>
+            <th class="right">CPC</th>
+            <th class="right">CTR</th>
+            <th class="right">Revenue</th>
+            <th class="right">Gross ROI</th>
+            <th class="right">Series ROI</th>
+          </tr>
+        </thead>
+        <tbody id="seriesDrillBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- Author Drilldown Modal -->
 <div class="modal-overlay" id="authorDrillModal">
   <div class="modal" style="max-width: 1000px;">
@@ -939,6 +1035,10 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
   let adChart = null;
   let cpcYoyChart = null;
   let ctrYoyChart = null;
+  let authorPeriod = 'month';
+  let seriesPeriod = 'month';
+  let seriesSortKey = 'spend';
+  let seriesSortDir = -1;
   
   // Initialize on load
   document.addEventListener('DOMContentLoaded', init);
@@ -980,6 +1080,20 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     document.getElementById('authorFilter').addEventListener('change', updateOverviewCharts);
     document.getElementById('genreFilter').addEventListener('change', updateOverviewCharts);
     document.getElementById('seriesFilter').addEventListener('change', updateOverviewCharts);
+
+    document.querySelectorAll('[data-author-period]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        authorPeriod = this.getAttribute('data-author-period');
+        renderAuthorTab();
+      });
+    });
+
+    document.querySelectorAll('[data-series-period]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        seriesPeriod = this.getAttribute('data-series-period');
+        renderSeriesTab();
+      });
+    });
   }
   
   function switchTab(tabName) {
@@ -1002,6 +1116,9 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     }
     if (tabName === 'historical') {
       renderHistoricalTab();
+    }
+    if (tabName === 'series') {
+      renderSeriesTab();
     }
   }
   
@@ -1650,6 +1767,28 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   }
+
+  // Returns a flat array of campaign objects covering the requested period.
+  // Current month (month_campaigns) is always included; history entries are
+  // appended for multi-month periods.
+  function getCampaignsForPeriod(period) {
+    const result = [...(DATA.month_campaigns || [])];
+    if (period === 'month') return result;
+
+    const now = new Date();
+    // monthsBack = how many previous months to include from history
+    // e.g. '3m' = current + 2 previous = 3 months total
+    const monthsBack = period === '3m' ? 2 : period === '6m' ? 5 : period === '12m' ? 11 : Infinity;
+
+    (DATA.history || []).forEach(h => {
+      const d = new Date(h.month);
+      const diff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+      if (diff <= monthsBack) {
+        (h.campaigns_data || []).forEach(c => result.push(c));
+      }
+    });
+    return result;
+  }
   
   // ══════════════════════════════════════════════════════════════
   // CURRENT MONTH TAB
@@ -2178,11 +2317,13 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
   let authorSortDir = -1; // -1 = desc, 1 = asc
 
   function renderAuthorTab() {
-    // Populate genre filter (once)
+    // Populate genre filter once — use all historical data so it doesn't change per period
     const genreSelect = document.getElementById('authorTabGenreFilter');
     if (genreSelect.options.length === 1) {
       const genres = new Set();
-      (DATA.month_campaigns || []).forEach(c => { if (c.genre) genres.add(c.genre); });
+      [...(DATA.month_campaigns || []),
+       ...(DATA.history || []).flatMap(h => h.campaigns_data || [])
+      ].forEach(c => { if (c.genre) genres.add(c.genre); });
       Array.from(genres).sort().forEach(g => {
         const opt = document.createElement('option');
         opt.value = g; opt.textContent = g;
@@ -2192,42 +2333,47 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
       document.getElementById('authorTabTerritoryFilter').addEventListener('change', renderAuthorTab);
     }
 
+    // Sync period button states
+    document.querySelectorAll('[data-author-period]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-author-period') === authorPeriod);
+    });
+
     const territory = document.getElementById('authorTabTerritoryFilter').value;
     const genre     = document.getElementById('authorTabGenreFilter').value;
 
-    let campaigns = (DATA.month_campaigns || []).filter(c => {
+    const campaigns = getCampaignsForPeriod(authorPeriod).filter(c => {
       if (territory !== 'all' && c.territory !== territory) return false;
-      if (genre !== 'all' && c.genre !== genre) return false;
+      if (genre     !== 'all' && c.genre     !== genre)     return false;
       return true;
     });
 
-    // Roll up by author
+    // Roll up by author, aggregating across all months in the period
     const authorMap = {};
     campaigns.forEach(c => {
       const key = c.author || 'Unknown';
       if (!authorMap[key]) {
-        authorMap[key] = { author: key, campaigns: [], spend: 0, clicks: 0, impressions: 0,
+        authorMap[key] = { author: key, campaigns: [], uniqueKeys: new Set(),
+          spend: 0, clicks: 0, impressions: 0,
           gross_profit: 0, series_spend: 0, series_profit: 0, revenue: 0 };
       }
       const a = authorMap[key];
       a.campaigns.push(c);
+      a.uniqueKeys.add((c.edition_id || '') + '_' + (c.territory || ''));
       a.spend       += (c.spend       || 0);
       a.clicks      += (c.clicks      || 0);
       a.impressions += (c.impressions || 0);
       a.gross_profit+= (c.gross_profit|| 0);
       a.revenue     += (c.revenue     || 0);
       if (c.series_no === 1 && c.series_profit != null) {
-        a.series_spend  += (c.spend          || 0);
-        a.series_profit += (c.series_profit  || 0);
+        a.series_spend  += (c.spend         || 0);
+        a.series_profit += (c.series_profit || 0);
       }
     });
 
-    // Get KDP revenue per author from DATA.month_author_kdp if available
+    // KDP revenue is only available for the current month
     const kdpMap = {};
-    if (DATA.month_author_kdp) {
-      DATA.month_author_kdp.forEach(row => {
-        kdpMap[row.author] = (row.kdp_revenue || 0);
-      });
+    if (authorPeriod === 'month' && DATA.month_author_kdp) {
+      DATA.month_author_kdp.forEach(row => { kdpMap[row.author] = (row.kdp_revenue || 0); });
     }
 
     const rows = Object.values(authorMap).map(a => {
@@ -2240,13 +2386,13 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
       return { ...a, cpc, ctr, gross_roi, series_roi, kdp_revenue, spend_pct_kdp };
     });
 
-    // Render summary metrics
-    const totalSpend    = rows.reduce((s, r) => s + r.spend, 0);
-    const totalClicks   = rows.reduce((s, r) => s + r.clicks, 0);
-    const totalRevenue  = rows.reduce((s, r) => s + r.revenue, 0);
-    const avgCpc        = totalClicks > 0 ? totalSpend / totalClicks : 0;
-    const totalImpr     = rows.reduce((s, r) => s + r.impressions, 0);
-    const avgCtr        = totalImpr > 0 ? (totalClicks / totalImpr * 100) : 0;
+    // Summary metrics
+    const totalSpend  = rows.reduce((s, r) => s + r.spend, 0);
+    const totalClicks = rows.reduce((s, r) => s + r.clicks, 0);
+    const totalRevenue= rows.reduce((s, r) => s + r.revenue, 0);
+    const avgCpc      = totalClicks > 0 ? totalSpend / totalClicks : 0;
+    const totalImpr   = rows.reduce((s, r) => s + r.impressions, 0);
+    const avgCtr      = totalImpr > 0 ? (totalClicks / totalImpr * 100) : 0;
 
     document.getElementById('authorTabMetrics').innerHTML = `
       <div class="metric-card"><div class="metric-label">Authors</div><div class="metric-value">${rows.length}</div></div>
@@ -2268,21 +2414,21 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
 
     document.getElementById('authorTabCount').textContent = sorted.length + ' author' + (sorted.length !== 1 ? 's' : '');
 
-    const hasKdp = Object.keys(kdpMap).length > 0;
+    const hasKdp = authorPeriod === 'month' && Object.keys(kdpMap).length > 0;
 
     const thClass = k => `class="${k === 'author' ? '' : 'right'}${authorSortKey === k ? ' sort-active' : ''}"`;
     const arrow = k => authorSortKey === k ? (authorSortDir === -1 ? ' ▼' : ' ▲') : '';
 
     const headers = [
-      { k: 'author',        label: 'Author' },
-      { k: 'clicks',        label: 'Clicks' },
-      { k: 'cpc',           label: 'CPC' },
-      { k: 'ctr',           label: 'CTR' },
-      { k: 'gross_roi',     label: 'Gross ROI' },
-      { k: 'series_roi',    label: 'Series ROI' },
-      { k: 'spend',         label: 'Ad Spend' },
+      { k: 'author',     label: 'Author' },
+      { k: 'clicks',     label: 'Clicks' },
+      { k: 'cpc',        label: 'CPC' },
+      { k: 'ctr',        label: 'CTR' },
+      { k: 'gross_roi',  label: 'Gross ROI' },
+      { k: 'series_roi', label: 'Series ROI' },
+      { k: 'spend',      label: 'Ad Spend' },
       ...(hasKdp ? [{ k: 'kdp_revenue', label: 'Author KDP Rev' }, { k: 'spend_pct_kdp', label: 'Spend % KDP' }] : []),
-      { k: '_campaigns',    label: 'Campaigns', noSort: true },
+      { k: '_campaigns', label: 'Campaigns', noSort: true },
     ];
 
     const theadRow = headers.map(h =>
@@ -2292,19 +2438,20 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     ).join('');
 
     const tbody = sorted.map(r => {
-      const grossClass = r.gross_roi != null ? (r.gross_roi >= 0 ? 'positive' : 'negative') : '';
+      const grossClass = r.gross_roi  != null ? (r.gross_roi  >= 0 ? 'positive' : 'negative') : '';
       const serClass   = r.series_roi != null ? (r.series_roi >= 0 ? 'positive' : 'negative') : '';
+      const uniq = r.uniqueKeys.size;
       return `<tr class="clickable" data-author="${(r.author||'').replace(/"/g,'&quot;')}">
-        <td><div class="campaign-title">${r.author || 'Unknown'}</div><div class="campaign-meta">${r.campaigns.length} campaign${r.campaigns.length !== 1 ? 's' : ''}</div></td>
+        <td><div class="campaign-title">${r.author || 'Unknown'}</div><div class="campaign-meta">${uniq} campaign${uniq !== 1 ? 's' : ''}</div></td>
         <td class="right">${r.clicks ? formatNumber(r.clicks) : '-'}</td>
-        <td class="right">${r.cpc != null ? '£' + r.cpc.toFixed(3) : '-'}</td>
-        <td class="right">${r.ctr != null ? r.ctr.toFixed(2) + '%' : '-'}</td>
-        <td class="right ${grossClass}">${r.gross_roi != null ? r.gross_roi.toFixed(1) + '%' : '-'}</td>
+        <td class="right">${r.cpc  != null ? '£' + r.cpc.toFixed(3)  : '-'}</td>
+        <td class="right">${r.ctr  != null ? r.ctr.toFixed(2) + '%'  : '-'}</td>
+        <td class="right ${grossClass}">${r.gross_roi  != null ? r.gross_roi.toFixed(1)  + '%' : '-'}</td>
         <td class="right ${serClass}">${r.series_roi != null ? r.series_roi.toFixed(1) + '%' : '-'}</td>
         <td class="right">£${formatCurrency(r.spend)}</td>
         ${hasKdp ? `<td class="right">${r.kdp_revenue != null ? '£' + formatCurrency(r.kdp_revenue) : '—'}</td>` : ''}
         ${hasKdp ? `<td class="right">${r.spend_pct_kdp != null ? r.spend_pct_kdp.toFixed(1) + '%' : '—'}</td>` : ''}
-        <td class="right">${r.campaigns.length}</td>
+        <td class="right">${uniq}</td>
       </tr>`;
     }).join('');
 
@@ -2312,21 +2459,15 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     const container = document.getElementById('authorTable');
     container.innerHTML = tableHTML;
 
-    // Sort click handlers
     container.querySelectorAll('th[data-sort]').forEach(th => {
       th.addEventListener('click', () => {
         const k = th.getAttribute('data-sort');
-        if (authorSortKey === k) {
-          authorSortDir *= -1;
-        } else {
-          authorSortKey = k;
-          authorSortDir = k === 'author' ? 1 : -1;
-        }
+        if (authorSortKey === k) { authorSortDir *= -1; }
+        else { authorSortKey = k; authorSortDir = k === 'author' ? 1 : -1; }
         renderAuthorTab();
       });
     });
 
-    // Row click → drilldown
     container.querySelectorAll('tr.clickable').forEach(row => {
       row.addEventListener('click', () => openAuthorDrilldown(row.dataset.author, rows));
     });
@@ -2334,7 +2475,35 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
 
   function openAuthorDrilldown(author, authorRows) {
     const authorData = authorRows ? authorRows.find(r => r.author === author) : null;
-    const campaigns = authorData ? authorData.campaigns : (DATA.month_campaigns || []).filter(c => c.author === author);
+    const rawCampaigns = authorData ? authorData.campaigns : (DATA.month_campaigns || []).filter(c => c.author === author);
+
+    // Aggregate by book (edition_id + territory) so multi-month periods show one row per book
+    const bookMap = {};
+    rawCampaigns.forEach(c => {
+      const key = (c.edition_id || '') + '_' + (c.territory || '');
+      if (!bookMap[key]) {
+        bookMap[key] = { ...c, spend: 0, clicks: 0, impressions: 0, revenue: 0, gross_profit: 0, _sp: 0, _ss: 0 };
+      }
+      const b = bookMap[key];
+      b.spend       += (c.spend       || 0);
+      b.clicks      += (c.clicks      || 0);
+      b.impressions += (c.impressions || 0);
+      b.revenue     += (c.revenue     || 0);
+      b.gross_profit+= (c.gross_profit|| 0);
+      if (c.series_no === 1 && c.series_profit != null) {
+        b._ss += (c.spend         || 0);
+        b._sp += (c.series_profit || 0);
+      }
+    });
+
+    const campaigns = Object.values(bookMap).map(b => ({
+      ...b,
+      cpc:        b.clicks > 0      ? b.spend / b.clicks              : null,
+      ctr:        b.impressions > 0 ? (b.clicks / b.impressions * 100): null,
+      gross_roi:  b.spend > 0       ? (b.gross_profit / b.spend * 100): null,
+      series_roi: b._ss > 0         ? (b._sp / b._ss * 100)           : null,
+    }));
+
     if (!campaigns || campaigns.length === 0) return;
 
     const runningKeys = new Set((DATA.running || []).map(r => r.edition_id + '_' + r.territory));
@@ -2345,21 +2514,27 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
       return bRoi - aRoi;
     });
 
-    const totalSpend = campaigns.reduce((s, c) => s + (c.spend || 0), 0);
+    const totalSpend  = campaigns.reduce((s, c) => s + (c.spend  || 0), 0);
     const totalClicks = campaigns.reduce((s, c) => s + (c.clicks || 0), 0);
     const totalImpr   = campaigns.reduce((s, c) => s + (c.impressions || 0), 0);
     const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
-    const avgCtr = totalImpr > 0 ? (totalClicks / totalImpr * 100) : 0;
+    const avgCtr = totalImpr  > 0 ? (totalClicks / totalImpr * 100) : 0;
+
+    const periodLabel = authorPeriod === 'month'  ? 'this month'
+      : authorPeriod === '3m'   ? 'last 3 months'
+      : authorPeriod === '6m'   ? 'last 6 months'
+      : authorPeriod === '12m'  ? 'last 12 months'
+      : 'lifetime';
 
     document.getElementById('drillAuthorName').textContent = author;
-    document.getElementById('drillSubtitle').textContent = campaigns.length + ' campaign' + (campaigns.length !== 1 ? 's' : '') + ' this month';
+    document.getElementById('drillSubtitle').textContent = campaigns.length + ' campaign' + (campaigns.length !== 1 ? 's' : '') + ' — ' + periodLabel;
     document.getElementById('drillHighlight').innerHTML =
       'Total spend: <strong>£' + formatCurrency(totalSpend) + '</strong> &nbsp;·&nbsp; ' +
       'Avg CPC: <strong>£' + avgCpc.toFixed(3) + '</strong> &nbsp;·&nbsp; ' +
       'Avg CTR: <strong>' + avgCtr.toFixed(2) + '%</strong>';
 
     document.getElementById('drillTableBody').innerHTML = sorted.map(c => {
-      const key = c.edition_id + '_' + c.territory;
+      const key = (c.edition_id || '') + '_' + (c.territory || '');
       const isRunning = runningKeys.has(key);
       return `<tr>
         <td>
@@ -2369,10 +2544,10 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
         <td><span class="badge ${isRunning ? 'badge-running' : 'badge-ended'}">${isRunning ? 'Running' : 'Ended'}</span></td>
         <td class="right">£${formatCurrency(c.spend)}</td>
         <td class="right">${c.clicks ? formatNumber(c.clicks) : '-'}</td>
-        <td class="right">${c.cpc ? '£' + c.cpc.toFixed(3) : '-'}</td>
-        <td class="right">${c.ctr ? c.ctr.toFixed(2) + '%' : '-'}</td>
+        <td class="right">${c.cpc  != null ? '£' + c.cpc.toFixed(3)  : '-'}</td>
+        <td class="right">${c.ctr  != null ? c.ctr.toFixed(2) + '%'  : '-'}</td>
         <td class="right">£${formatCurrency(c.revenue)}</td>
-        <td class="right ${c.gross_roi >= 0 ? 'positive' : 'negative'}">${c.gross_roi != null ? c.gross_roi.toFixed(1) + '%' : '-'}</td>
+        <td class="right ${c.gross_roi  != null ? (c.gross_roi  >= 0 ? 'positive' : 'negative') : ''}">${c.gross_roi  != null ? c.gross_roi.toFixed(1)  + '%' : '-'}</td>
         <td class="right ${c.series_roi != null ? (c.series_roi >= 0 ? 'positive' : 'negative') : ''}">${c.series_roi != null ? c.series_roi.toFixed(1) + '%' : '-'}</td>
       </tr>`;
     }).join('');
@@ -2386,6 +2561,228 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
   });
 
   // ─── End Author Tab ─────────────────────────────────────────────────────────
+
+  // ══════════════════════════════════════════════════════════════
+  // SERIES TAB
+  // ══════════════════════════════════════════════════════════════
+
+  function renderSeriesTab() {
+    // Populate genre filter once from all available data
+    const genreSel = document.getElementById('seriesTabGenreFilter');
+    if (genreSel.options.length === 1) {
+      const genres = new Set();
+      [...(DATA.month_campaigns || []),
+       ...(DATA.history || []).flatMap(h => h.campaigns_data || [])
+      ].forEach(c => { if (c.genre) genres.add(c.genre); });
+      Array.from(genres).sort().forEach(g => {
+        const o = document.createElement('option'); o.value = g; o.textContent = g;
+        genreSel.appendChild(o);
+      });
+      genreSel.addEventListener('change', renderSeriesTab);
+      document.getElementById('seriesTabTerritoryFilter').addEventListener('change', renderSeriesTab);
+    }
+
+    // Sync period button states
+    document.querySelectorAll('[data-series-period]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-series-period') === seriesPeriod);
+    });
+
+    const territory = document.getElementById('seriesTabTerritoryFilter').value;
+    const genre     = document.getElementById('seriesTabGenreFilter').value;
+
+    const campaigns = getCampaignsForPeriod(seriesPeriod).filter(c => {
+      if (territory !== 'all' && c.territory !== territory) return false;
+      if (genre     !== 'all' && c.genre     !== genre)     return false;
+      return true;
+    });
+
+    const rollup = buildSeriesRollup(campaigns);
+
+    // Summary metrics
+    const totalSpend  = rollup.reduce((s, r) => s + r.spend, 0);
+    const totalClicks = rollup.reduce((s, r) => s + r.clicks, 0);
+    const totalImpr   = rollup.reduce((s, r) => s + r.impressions, 0);
+    const totalGP     = rollup.reduce((s, r) => s + r.gross_profit, 0);
+    const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
+    const avgCtr = totalImpr   > 0 ? (totalClicks / totalImpr * 100) : 0;
+    const namedSeries = rollup.filter(r => r.series).length;
+
+    document.getElementById('seriesTabMetrics').innerHTML = `
+      <div class="metric-card"><div class="metric-label">Series</div><div class="metric-value">${namedSeries}</div><div class="metric-sub">${rollup.filter(r => !r.series).length > 0 ? '+ standalone' : ''}</div></div>
+      <div class="metric-card"><div class="metric-label">Total Spend</div><div class="metric-value mono">£${formatCurrency(totalSpend)}</div></div>
+      <div class="metric-card"><div class="metric-label">Avg CPC</div><div class="metric-value mono">£${avgCpc.toFixed(3)}</div></div>
+      <div class="metric-card"><div class="metric-label">Avg CTR</div><div class="metric-value mono">${avgCtr.toFixed(2)}%</div></div>
+      <div class="metric-card"><div class="metric-label">Gross Profit</div><div class="metric-value mono ${totalGP >= 0 ? 'positive' : 'negative'}">${totalGP >= 0 ? '' : '-'}£${formatCurrency(Math.abs(totalGP))}</div></div>
+    `;
+
+    // Sort
+    const sorted = [...rollup].sort((a, b) => {
+      let av = a[seriesSortKey], bv = b[seriesSortKey];
+      if (av == null) av = seriesSortDir === -1 ? -Infinity : Infinity;
+      if (bv == null) bv = seriesSortDir === -1 ? -Infinity : Infinity;
+      if (typeof av === 'string') return seriesSortDir * av.localeCompare(bv);
+      return seriesSortDir * (bv - av);
+    });
+
+    document.getElementById('seriesTabCount').textContent = sorted.length + ' series';
+
+    const thClass = k => `class="${k === 'series' ? '' : 'right'}${seriesSortKey === k ? ' sort-active' : ''}"`;
+    const arrow   = k => seriesSortKey === k ? (seriesSortDir === -1 ? ' ▼' : ' ▲') : '';
+
+    const headers = [
+      { k: 'series',     label: 'Series' },
+      { k: 'spend',      label: 'Spend' },
+      { k: 'clicks',     label: 'Clicks' },
+      { k: 'cpc',        label: 'CPC' },
+      { k: 'ctr',        label: 'CTR' },
+      { k: 'revenue',    label: 'Revenue' },
+      { k: 'gross_roi',  label: 'Gross ROI' },
+      { k: 'series_roi', label: 'Series ROI (B1)' },
+    ];
+
+    const theadRow = headers.map(h =>
+      `<th ${thClass(h.k)} data-ssort="${h.k}" style="cursor:pointer;">${h.label}${arrow(h.k)}</th>`
+    ).join('');
+
+    const tbody = sorted.map(r => {
+      const grossClass = r.gross_roi  != null ? (r.gross_roi  >= 0 ? 'positive' : 'negative') : '';
+      const serClass   = r.series_roi != null ? (r.series_roi >= 0 ? 'positive' : 'negative') : '';
+      return `<tr class="clickable" data-series-key="${(r.series || '__standalone__').replace(/"/g,'&quot;')}">
+        <td>
+          <div class="campaign-title">${r.series || 'Standalone'}</div>
+          <div class="campaign-meta">${r.uniqueCampaigns} unique campaign${r.uniqueCampaigns !== 1 ? 's' : ''}</div>
+        </td>
+        <td class="right">£${formatCurrency(r.spend)}</td>
+        <td class="right">${r.clicks ? formatNumber(r.clicks) : '-'}</td>
+        <td class="right">${r.cpc  != null ? '£' + r.cpc.toFixed(3)  : '-'}</td>
+        <td class="right">${r.ctr  != null ? r.ctr.toFixed(2) + '%'  : '-'}</td>
+        <td class="right">£${formatCurrency(r.revenue)}</td>
+        <td class="right ${grossClass}">${r.gross_roi  != null ? r.gross_roi.toFixed(1)  + '%' : '-'}</td>
+        <td class="right ${serClass}">${r.series_roi != null ? r.series_roi.toFixed(1) + '%' : '-'}</td>
+      </tr>`;
+    }).join('');
+
+    const container = document.getElementById('seriesTable');
+    container.innerHTML = `<table><thead><tr>${theadRow}</tr></thead><tbody>${tbody}</tbody></table>`;
+
+    container.querySelectorAll('th[data-ssort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const k = th.getAttribute('data-ssort');
+        if (seriesSortKey === k) { seriesSortDir *= -1; }
+        else { seriesSortKey = k; seriesSortDir = k === 'series' ? 1 : -1; }
+        renderSeriesTab();
+      });
+    });
+
+    container.querySelectorAll('tr.clickable').forEach(row => {
+      row.addEventListener('click', () => {
+        const key = row.dataset.seriesKey;
+        const s = sorted.find(r => (r.series || '__standalone__') === key);
+        if (s) openSeriesDrilldown(s);
+      });
+    });
+  }
+
+  function buildSeriesRollup(campaigns) {
+    const map = {};
+    campaigns.forEach(c => {
+      const key = c.series || '__standalone__';
+      if (!map[key]) {
+        map[key] = { series: c.series || null, uniqueKeys: new Set(), campaignList: [],
+          spend: 0, clicks: 0, impressions: 0, revenue: 0, gross_profit: 0,
+          series_spend: 0, series_profit: 0 };
+      }
+      const s = map[key];
+      s.uniqueKeys.add((c.edition_id || '') + '_' + (c.territory || ''));
+      s.campaignList.push(c);
+      s.spend       += (c.spend       || 0);
+      s.clicks      += (c.clicks      || 0);
+      s.impressions += (c.impressions || 0);
+      s.revenue     += (c.revenue     || 0);
+      s.gross_profit+= (c.gross_profit|| 0);
+      if (c.series_no === 1 && c.series_profit != null) {
+        s.series_spend  += (c.spend         || 0);
+        s.series_profit += (c.series_profit || 0);
+      }
+    });
+    return Object.values(map).map(s => ({
+      series: s.series,
+      uniqueCampaigns: s.uniqueKeys.size,
+      campaignList: s.campaignList,
+      spend: s.spend, clicks: s.clicks, impressions: s.impressions,
+      revenue: s.revenue, gross_profit: s.gross_profit,
+      series_spend: s.series_spend, series_profit: s.series_profit,
+      cpc:        s.clicks > 0       ? s.spend / s.clicks               : null,
+      ctr:        s.impressions > 0  ? (s.clicks / s.impressions * 100) : null,
+      gross_roi:  s.spend > 0        ? (s.gross_profit / s.spend * 100) : null,
+      series_roi: s.series_spend > 0 ? (s.series_profit / s.series_spend * 100) : null,
+    }));
+  }
+
+  function openSeriesDrilldown(seriesData) {
+    // Aggregate by book (edition_id + territory) across all months
+    const bookMap = {};
+    seriesData.campaignList.forEach(c => {
+      const key = (c.edition_id || '') + '_' + (c.territory || '');
+      if (!bookMap[key]) {
+        bookMap[key] = { ...c, spend: 0, clicks: 0, impressions: 0, revenue: 0, gross_profit: 0, _sp: 0, _ss: 0 };
+      }
+      const b = bookMap[key];
+      b.spend       += (c.spend       || 0);
+      b.clicks      += (c.clicks      || 0);
+      b.impressions += (c.impressions || 0);
+      b.revenue     += (c.revenue     || 0);
+      b.gross_profit+= (c.gross_profit|| 0);
+      if (c.series_no === 1 && c.series_profit != null) {
+        b._ss += (c.spend         || 0);
+        b._sp += (c.series_profit || 0);
+      }
+    });
+
+    const books = Object.values(bookMap).map(b => ({
+      ...b,
+      cpc:        b.clicks > 0      ? b.spend / b.clicks               : null,
+      ctr:        b.impressions > 0 ? (b.clicks / b.impressions * 100) : null,
+      gross_roi:  b.spend > 0       ? (b.gross_profit / b.spend * 100) : null,
+      series_roi: b._ss > 0         ? (b._sp / b._ss * 100)            : null,
+    })).sort((a, b) =>
+      (a.series_no || 999) - (b.series_no || 999) || (a.territory || '').localeCompare(b.territory || '')
+    );
+
+    document.getElementById('drillSeriesName').textContent = seriesData.series || 'Standalone';
+    document.getElementById('drillSeriesSubtitle').textContent =
+      seriesData.uniqueCampaigns + ' unique campaign' + (seriesData.uniqueCampaigns !== 1 ? 's' : '');
+    document.getElementById('drillSeriesHighlight').innerHTML =
+      'Total spend: <strong>£' + formatCurrency(seriesData.spend) + '</strong>' +
+      (seriesData.cpc != null ? ' &nbsp;·&nbsp; CPC: <strong>£' + seriesData.cpc.toFixed(3) + '</strong>' : '') +
+      (seriesData.ctr != null ? ' &nbsp;·&nbsp; CTR: <strong>' + seriesData.ctr.toFixed(2) + '%</strong>' : '');
+
+    document.getElementById('seriesDrillBody').innerHTML = books.map(b => {
+      const grossClass = b.gross_roi  != null ? (b.gross_roi  >= 0 ? 'positive' : 'negative') : '';
+      const serClass   = b.series_roi != null ? (b.series_roi >= 0 ? 'positive' : 'negative') : '';
+      return `<tr>
+        <td>
+          <div class="campaign-title">${b.title || ''}</div>
+          <div class="campaign-meta">${b.author || 'Unknown'} · ${b.genre || 'Unknown'}</div>
+        </td>
+        <td class="right">${b.series_no != null ? 'Bk ' + b.series_no : '—'}</td>
+        <td class="right">${b.territory || ''}</td>
+        <td class="right">£${formatCurrency(b.spend)}</td>
+        <td class="right">${b.clicks ? formatNumber(b.clicks) : '-'}</td>
+        <td class="right">${b.cpc  != null ? '£' + b.cpc.toFixed(3)  : '-'}</td>
+        <td class="right">${b.ctr  != null ? b.ctr.toFixed(2) + '%'  : '-'}</td>
+        <td class="right">£${formatCurrency(b.revenue)}</td>
+        <td class="right ${grossClass}">${b.gross_roi  != null ? b.gross_roi.toFixed(1)  + '%' : '-'}</td>
+        <td class="right ${serClass}">${b.series_roi != null ? b.series_roi.toFixed(1) + '%' : '-'}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('seriesDrillModal').classList.add('open');
+  }
+
+  document.getElementById('seriesDrillModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
 
   function openAuthorModal(author, highlightKey) {
     const allCampaigns = getFilteredMonthCampaigns();
