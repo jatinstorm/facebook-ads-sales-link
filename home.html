@@ -9,18 +9,18 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #f7f5f0;
-  --surface: #ffffff;
-  --surface2: #f0ede6;
-  --border: rgba(0,0,0,0.07);
-  --border-hover: rgba(0,0,0,0.14);
-  --text: #1a1714;
-  --muted: #8a8578;
-  --faint: #e8e4dc;
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --surface2: #f2f2f2;
+  --border: rgba(0,0,0,0.09);
+  --border-hover: rgba(0,0,0,0.18);
+  --text: #0d0d0d;
+  --muted: #7a7a7a;
+  --faint: #e8e8e8;
 
-  --gold: #b8922a;
-  --gold-light: #c9a84c;
-  --gold-glow: rgba(184,146,42,0.08);
+  --gold: #2a2a2a;
+  --gold-light: #444444;
+  --gold-glow: rgba(0,0,0,0.04);
   --teal: #1a9e94;
   --teal-glow: rgba(26,158,148,0.07);
   --audio: #7c5cbf;
@@ -31,19 +31,11 @@
 
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', sans-serif; overflow-x: hidden; }
 
-body::after {
-  content: '';
-  position: fixed; inset: 0; pointer-events: none; z-index: 999;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  opacity: 0.25;
-}
-
 .ambient {
   position: fixed; inset: 0; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(ellipse 55% 40% at 10% 15%, rgba(184,146,42,0.06) 0%, transparent 70%),
-    radial-gradient(ellipse 45% 45% at 90% 80%, rgba(26,158,148,0.05) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 35% at 50% 50%, rgba(124,92,191,0.04) 0%, transparent 70%);
+    radial-gradient(ellipse 45% 45% at 90% 80%, rgba(26,158,148,0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 35% at 50% 50%, rgba(124,92,191,0.03) 0%, transparent 70%);
 }
 
 .page {
@@ -65,7 +57,7 @@ header {
 .logo { display: flex; align-items: center; }
 
 .logo-img {
-  height: 40px;
+  height: 52px;
   width: auto;
   display: block;
 }
@@ -84,7 +76,7 @@ header {
 
 .greeting-line {
   font-family: 'DM Mono', monospace;
-  font-size: 11px; color: var(--gold);
+  font-size: 11px; color: var(--muted);
   letter-spacing: 0.12em; text-transform: uppercase;
   margin-bottom: 12px;
   opacity: 0; animation: fadeUp 0.8s 0.3s ease forwards;
@@ -92,7 +84,7 @@ header {
 }
 .greeting-line::before {
   content: ''; display: block; width: 32px; height: 1px;
-  background: var(--gold); opacity: 0.5;
+  background: var(--muted); opacity: 0.5;
 }
 
 .hero-heading {
@@ -103,7 +95,7 @@ header {
   margin-bottom: 8px;
   opacity: 0; animation: fadeUp 0.9s 0.4s ease forwards;
 }
-.hero-heading em { font-style: italic; color: var(--gold); }
+.hero-heading em { font-style: italic; color: var(--text); }
 
 .hero-sub {
   font-size: 13px; color: var(--muted); font-weight: 400;
@@ -115,7 +107,7 @@ header {
 /* —— DIVIDER —— */
 .divider {
   width: 100%; height: 1px;
-  background: linear-gradient(90deg, var(--gold), transparent 60%);
+  background: var(--border);
   margin-bottom: 24px;
   opacity: 0; animation: fadeUp 0.8s 0.65s ease forwards;
 }
@@ -155,7 +147,7 @@ header {
 
 .card:hover { transform: translateY(-5px); border-color: var(--border-hover); }
 .card:hover::before { opacity: 1; }
-.card-ads:hover    { box-shadow: 0 20px 56px rgba(184,146,42,0.1); }
+.card-ads:hover    { box-shadow: 0 20px 56px rgba(0,0,0,0.07); }
 .card-series:hover { box-shadow: 0 20px 56px rgba(26,158,148,0.08); }
 .card-audio:hover  { box-shadow: 0 20px 56px rgba(124,92,191,0.1); }
 .card-kdp:hover    { box-shadow: 0 20px 56px rgba(29,92,158,0.1); }
@@ -169,7 +161,7 @@ header {
   width: 48px; height: 48px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
 }
-.card-ads .card-icon    { background: rgba(184,146,42,0.1); }
+.card-ads .card-icon    { background: rgba(0,0,0,0.05); }
 .card-series .card-icon { background: rgba(26,158,148,0.08); }
 .card-audio .card-icon  { background: rgba(124,92,191,0.1); }
 .card-kdp .card-icon    { background: rgba(29,92,158,0.1); }
@@ -186,7 +178,7 @@ header {
   transition: all 0.3s;
 }
 .card:hover .card-arrow { transform: translate(3px, -3px); border-color: var(--border-hover); }
-.card-ads:hover .card-arrow    { background: rgba(184,146,42,0.08); }
+.card-ads:hover .card-arrow    { background: rgba(0,0,0,0.05); }
 .card-series:hover .card-arrow { background: rgba(26,158,148,0.06); }
 .card-audio:hover .card-arrow  { background: rgba(124,92,191,0.08); }
 .card-kdp:hover .card-arrow    { background: rgba(29,92,158,0.08); }
