@@ -25,6 +25,8 @@
   --teal-glow: rgba(26,158,148,0.07);
   --audio: #7c5cbf;
   --audio-glow: rgba(124,92,191,0.07);
+  --kdp: #1d5c9e;
+  --kdp-glow: rgba(29,92,158,0.08);
 }
 
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', sans-serif; overflow-x: hidden; }
@@ -166,12 +168,14 @@ header {
 .card-ads::before    { background: radial-gradient(ellipse 80% 60% at 20% 20%, var(--gold-glow), transparent); }
 .card-series::before { background: radial-gradient(ellipse 80% 60% at 80% 20%, var(--teal-glow), transparent); }
 .card-audio::before  { background: radial-gradient(ellipse 80% 60% at 20% 20%, var(--audio-glow), transparent); }
+.card-kdp::before    { background: radial-gradient(ellipse 80% 60% at 50% 20%, var(--kdp-glow), transparent); }
 
 .card:hover { transform: translateY(-5px); border-color: var(--border-hover); }
 .card:hover::before { opacity: 1; }
 .card-ads:hover    { box-shadow: 0 20px 56px rgba(184,146,42,0.1); }
 .card-series:hover { box-shadow: 0 20px 56px rgba(26,158,148,0.08); }
 .card-audio:hover  { box-shadow: 0 20px 56px rgba(124,92,191,0.1); }
+.card-kdp:hover    { box-shadow: 0 20px 56px rgba(29,92,158,0.1); }
 
 .card-top {
   display: flex; justify-content: space-between; align-items: flex-start;
@@ -185,10 +189,12 @@ header {
 .card-ads .card-icon    { background: rgba(184,146,42,0.1); }
 .card-series .card-icon { background: rgba(26,158,148,0.08); }
 .card-audio .card-icon  { background: rgba(124,92,191,0.1); }
+.card-kdp .card-icon    { background: rgba(29,92,158,0.1); }
 .card-icon svg { width: 22px; height: 22px; }
 .card-ads .card-icon svg    { stroke: var(--gold); }
 .card-series .card-icon svg { stroke: var(--teal); }
 .card-audio .card-icon svg  { stroke: var(--audio); }
+.card-kdp .card-icon svg    { stroke: var(--kdp); }
 
 .card-arrow {
   width: 36px; height: 36px; border-radius: 50%;
@@ -200,10 +206,12 @@ header {
 .card-ads:hover .card-arrow    { background: rgba(184,146,42,0.08); }
 .card-series:hover .card-arrow { background: rgba(26,158,148,0.06); }
 .card-audio:hover .card-arrow  { background: rgba(124,92,191,0.08); }
+.card-kdp:hover .card-arrow    { background: rgba(29,92,158,0.08); }
 .card-arrow svg { width: 14px; height: 14px; stroke: var(--muted); transition: stroke 0.3s; }
 .card-ads:hover .card-arrow svg    { stroke: var(--gold); }
 .card-series:hover .card-arrow svg { stroke: var(--teal); }
 .card-audio:hover .card-arrow svg  { stroke: var(--audio); }
+.card-kdp:hover .card-arrow svg    { stroke: var(--kdp); }
 
 .card-label {
   font-family: 'DM Mono', monospace;
@@ -213,6 +221,7 @@ header {
 .card-ads .card-label    { color: var(--gold); }
 .card-series .card-label { color: var(--teal); }
 .card-audio .card-label  { color: var(--audio); }
+.card-kdp .card-label    { color: var(--kdp); }
 
 .card-title {
   font-family: 'Cormorant Garamond', serif;
@@ -250,6 +259,7 @@ header {
 .card-ads .card-stat-value    { color: var(--gold); }
 .card-series .card-stat-value { color: var(--teal); }
 .card-audio .card-stat-value  { color: var(--audio); }
+.card-kdp .card-stat-value    { color: var(--kdp); }
 
 .card-stat-label {
   font-size: 10px; color: var(--muted);
@@ -393,6 +403,38 @@ footer {
           </div>
           <div class="card-stat">
             <div class="card-stat-value">Daily</div>
+            <div class="card-stat-label">Refresh</div>
+          </div>
+        </div>
+      </a>
+
+      <a class="card card-kdp" href="/kdp">
+        <div class="card-top">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </div>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 17L17 7M17 7H7M17 7v10"/>
+            </svg>
+          </div>
+        </div>
+        <div class="card-label">KDP Royalties</div>
+        <div class="card-title">KDP<br>Dashboard</div>
+        <div class="card-desc">Monthly royalties, price analysis, series retention, sales rank tracking and author performance across the full KDP catalogue.</div>
+        <div class="card-footer">
+          <div class="card-stat">
+            <div class="card-stat-value">Live</div>
+            <div class="card-stat-label">Status</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-value">655</div>
+            <div class="card-stat-label">Books</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-value">Monthly</div>
             <div class="card-stat-label">Refresh</div>
           </div>
         </div>
