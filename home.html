@@ -141,10 +141,6 @@ header {
   opacity: 0; animation: fadeUp 0.9s 0.75s ease forwards;
 }
 
-.card-audio-wide {
-  grid-column: 1 / -1;
-}
-
 .card {
   position: relative;
   background: var(--surface);
@@ -229,16 +225,6 @@ header {
   margin-bottom: 12px; color: var(--text);
 }
 
-/* wide card layout — title and desc side by side */
-.card-audio-wide .card-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  align-items: end;
-}
-.card-audio-wide .card-title { font-size: 40px; margin-bottom: 0; }
-.card-audio-wide .card-desc  { margin-bottom: 0; }
-
 .card-desc {
   font-size: 13px; color: var(--muted);
   line-height: 1.65; margin-bottom: 28px;
@@ -303,8 +289,6 @@ footer {
 @media (max-width: 720px) {
   .page { padding: 0 20px; }
   .cards { grid-template-columns: 1fr; }
-  .card-audio-wide { grid-column: auto; }
-  .card-audio-wide .card-body { grid-template-columns: 1fr; gap: 16px; }
   .hero-heading { font-size: 44px; }
   header { padding: 28px 0 0; }
 }
@@ -440,7 +424,7 @@ footer {
         </div>
       </a>
 
-      <a class="card card-audio card-audio-wide" href="/audio">
+      <a class="card card-audio" href="/audio">
         <div class="card-top">
           <div class="card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -454,10 +438,8 @@ footer {
           </div>
         </div>
         <div class="card-label">Audiobook Sales</div>
-        <div class="card-body">
-          <div class="card-title">Audiobook<br>Dashboard</div>
-          <div class="card-desc">Sales performance, RPU analysis, customer mix, narrator rankings and revenue trends across the full audiobook catalogue.</div>
-        </div>
+        <div class="card-title">Audiobook<br>Dashboard</div>
+        <div class="card-desc">Sales performance, RPU analysis, customer mix, narrator rankings and revenue trends across the full audiobook catalogue.</div>
         <div class="card-footer">
           <div class="card-stat">
             <div class="card-stat-value">Live</div>
