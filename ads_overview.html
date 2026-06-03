@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ads Overview Dashboard</title>
+<script>
+  // Apply saved theme before first paint to avoid a flash (dark is the default).
+  (function(){
+    try {
+      if ((localStorage.getItem('kdp-theme') || 'dark') === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch (e) {}
+  })();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -26,6 +36,40 @@
   --yellow: #ffd93d;
   --blue: #6c8fff;
   --red: #ff5757;
+
+  /* theme-aware replacements for previously-hardcoded colors */
+  --hover-bg: rgba(255, 255, 255, 0.05);
+  --hover-subtle: rgba(255, 255, 255, 0.03);
+  --nav-bg: rgba(12, 10, 15, 0.85);
+  --nav-border: rgba(255, 255, 255, 0.06);
+  --nav-btn-border: rgba(255, 255, 255, 0.1);
+  --dropdown-shadow: rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="light"] {
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --surface-elevated: #eaeef2;
+  --border: #d0d7de;
+  --text-primary: #1f2328;
+  --text-secondary: #59636e;
+  --text-muted: #818b98;
+
+  --accent: #1f9c84;
+  --accent-dim: #16806c;
+  --accent-glow: rgba(31, 156, 132, 0.18);
+
+  --pink: #cf3d77;
+  --yellow: #9a6700;
+  --blue: #4263eb;
+  --red: #d1242f;
+
+  --hover-bg: rgba(0, 0, 0, 0.05);
+  --hover-subtle: rgba(0, 0, 0, 0.03);
+  --nav-bg: rgba(255, 255, 255, 0.85);
+  --nav-border: rgba(0, 0, 0, 0.08);
+  --nav-btn-border: rgba(0, 0, 0, 0.12);
+  --dropdown-shadow: rgba(140, 149, 159, 0.3);
 }
 
 body {
@@ -94,7 +138,7 @@ h1 {
 
 .tab:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--hover-subtle);
 }
 
 .tab.active {
@@ -290,7 +334,7 @@ select:hover {
 
 .group-btn:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
 }
 
 .group-btn.active {
@@ -499,7 +543,7 @@ tbody tr:hover {
   border-radius: 6px;
   transition: all 0.2s;
 }
-.modal-close:hover { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+.modal-close:hover { color: var(--text-primary); background: var(--hover-bg); }
 .modal-highlight {
   background: rgba(0,212,170,0.08);
   border: 1px solid rgba(0,212,170,0.3);
@@ -540,17 +584,43 @@ th.sort-active {
 tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: rgba(0,212,170,0.06); }
 
+/* ── Theme toggle ── */
+.theme-toggle { display: inline-flex; align-items: center; gap: 10px; }
+.theme-toggle-label {
+  font-family: 'Syne', sans-serif; font-size: 12px; color: var(--text-secondary);
+  user-select: none; white-space: nowrap;
+}
+.theme-switch {
+  position: relative; width: 46px; height: 24px; flex: none; padding: 0;
+  border-radius: 999px; border: 1px solid var(--nav-btn-border);
+  background: var(--surface-elevated); cursor: pointer; transition: background 0.2s;
+}
+.theme-switch .knob {
+  position: absolute; top: 1px; left: 1px; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--accent);
+  display: flex; align-items: center; justify-content: center; font-size: 11px;
+  transition: transform 0.2s;
+}
+html[data-theme="light"] .theme-switch .knob { transform: translateX(22px); }
 </style>
 </head>
 <body>
 
-<nav style="position:sticky;top:0;z-index:100;background:rgba(12,10,15,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:52px;">
-  <a href="/home" style="font-family:'Syne',sans-serif;font-size:13px;color:#9999b5;text-decoration:none;display:flex;align-items:center;gap:8px;" onmouseover="this.style.color='#e8e8f0'" onmouseout="this.style.color='#9999b5'">← Home</a>
-  <div style="position:relative;">
-    <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'" style="background:none;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:6px 14px;color:#9999b5;font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;">Dashboards ▾</button>
-    <div style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:#1c1c2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:8px;min-width:200px;box-shadow:0 16px 40px rgba(0,0,0,0.4);">
-      <a href="/ads" style="display:block;padding:10px 14px;color:#e8e8f0;text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">📊 Ads Overview</a>
-      <a href="/series" style="display:block;padding:10px 14px;color:#e8e8f0;text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">📈 Series Projections</a>
+<nav style="position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(12px);border-bottom:1px solid var(--nav-border);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:52px;">
+  <a href="/home" style="font-family:'Syne',sans-serif;font-size:13px;color:var(--text-secondary);text-decoration:none;display:flex;align-items:center;gap:8px;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-secondary)'">← Home</a>
+  <div style="display:flex;align-items:center;gap:20px;">
+    <div class="theme-toggle">
+      <span class="theme-toggle-label" id="themeLabel">Dark Mode</span>
+      <button id="themeSwitch" class="theme-switch" role="switch" aria-checked="false" aria-label="Toggle light and dark theme">
+        <span class="knob" id="themeKnob">🌙</span>
+      </button>
+    </div>
+    <div style="position:relative;">
+      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'" style="background:none;border:1px solid var(--nav-btn-border);border-radius:8px;padding:6px 14px;color:var(--text-secondary);font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;">Dashboards ▾</button>
+      <div style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--surface-elevated);border:1px solid var(--nav-border);border-radius:12px;padding:8px;min-width:200px;box-shadow:0 16px 40px var(--dropdown-shadow);">
+        <a href="/ads" style="display:block;padding:10px 14px;color:var(--text-primary);text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='none'">📊 Ads Overview</a>
+        <a href="/series" style="display:block;padding:10px 14px;color:var(--text-primary);text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='none'">📈 Series Projections</a>
+      </div>
     </div>
   </div>
 </nav>
@@ -1042,7 +1112,60 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
   
   // Initialize on load
   document.addEventListener('DOMContentLoaded', init);
-  
+
+  // ── Theming ──
+  function themeVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function applyChartTheme() {
+    if (typeof Chart === 'undefined') return;
+    Chart.defaults.color = themeVar('--text-secondary');
+    Chart.defaults.borderColor = themeVar('--border');
+  }
+
+  function currentTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  }
+
+  function updateThemeUI() {
+    const light = currentTheme() === 'light';
+    const sw = document.getElementById('themeSwitch');
+    const lbl = document.getElementById('themeLabel');
+    const knob = document.getElementById('themeKnob');
+    if (sw) sw.setAttribute('aria-checked', String(light));
+    if (lbl) lbl.textContent = light ? 'Light Mode' : 'Dark Mode';
+    if (knob) knob.textContent = light ? '☀️' : '🌙';
+  }
+
+  function rerenderCurrentView() {
+    if (typeof DATA === 'undefined' || !DATA) return;
+    const active = document.querySelector('.tab.active');
+    const tabName = active ? active.getAttribute('data-tab') : 'overview';
+    if (tabName === 'current-month') renderCurrentMonthTab();
+    else if (tabName === 'authors') renderAuthorTab();
+    else if (tabName === 'historical') renderHistoricalTab();
+    else if (tabName === 'series') renderSeriesTab();
+    else renderOverviewCharts();
+  }
+
+  function toggleTheme() {
+    const light = currentTheme() !== 'light';
+    if (light) document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
+    try { localStorage.setItem('kdp-theme', light ? 'light' : 'dark'); } catch (e) {}
+    updateThemeUI();
+    applyChartTheme();
+    rerenderCurrentView();
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    applyChartTheme();
+    updateThemeUI();
+    const sw = document.getElementById('themeSwitch');
+    if (sw) sw.addEventListener('click', toggleTheme);
+  });
+
   function init() {
     if (typeof DATA === 'undefined' || !DATA) {
       document.getElementById('dataInfo').textContent = 'No data loaded';
@@ -1317,7 +1440,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             label: 'Spend',
             data: spend,
             backgroundColor: 'rgba(255, 87, 87, 0.7)',
-            borderColor: '#ff5757',
+            borderColor: themeVar('--red'),
             borderWidth: 2,
             borderRadius: 6,
             type: 'bar',
@@ -1327,7 +1450,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
           {
             label: 'Gross Profit',
             data: grossProfit,
-            borderColor: '#6c8fff',
+            borderColor: themeVar('--blue'),
             backgroundColor: 'rgba(108, 143, 255, 0.1)',
             borderWidth: 3,
             tension: 0.4,
@@ -1339,7 +1462,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
           {
             label: 'Series Profit',
             data: seriesProfit,
-            borderColor: '#00d4aa',
+            borderColor: themeVar('--accent'),
             backgroundColor: 'rgba(0, 212, 170, 0.1)',
             borderWidth: 3,
             tension: 0.4,
@@ -1358,16 +1481,16 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             display: true,
             position: 'top',
             labels: {
-              color: '#e8e8f0',
+              color: themeVar('--text-primary'),
               font: { family: 'Syne', size: 12 },
               padding: 16
             }
           },
           tooltip: {
-            backgroundColor: '#1c1c2e',
-            titleColor: '#e8e8f0',
-            bodyColor: '#9999b5',
-            borderColor: '#2a2a40',
+            backgroundColor: themeVar('--surface-elevated'),
+            titleColor: themeVar('--text-primary'),
+            bodyColor: themeVar('--text-secondary'),
+            borderColor: themeVar('--border'),
             borderWidth: 1,
             padding: 12,
             displayColors: true,
@@ -1385,9 +1508,9 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
         scales: {
           y: {
             beginAtZero: true,
-            grid: { color: '#2a2a40', drawBorder: false },
+            grid: { color: themeVar('--border'), drawBorder: false },
             ticks: {
-              color: '#9999b5',
+              color: themeVar('--text-secondary'),
               font: { family: 'IBM Plex Mono', size: 11 },
               callback: function(value) {
                 return '£' + formatCurrency(value);
@@ -1397,7 +1520,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
           x: {
             grid: { display: false, drawBorder: false },
             ticks: {
-              color: '#9999b5',
+              color: themeVar('--text-secondary'),
               font: { family: 'IBM Plex Mono', size: 11 }
             }
           }
@@ -1421,7 +1544,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
   {
     label: 'Clicks',
     data: clicks,
-    backgroundColor: '#6c8fff',
+    backgroundColor: themeVar('--blue'),
     borderRadius: 6,
     yAxisID: 'y',
     order: 3 // draw first (behind)
@@ -1430,7 +1553,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     label: 'CPC (£)',
     data: cpc,
     type: 'line',
-    borderColor: '#ff6b9d',
+    borderColor: themeVar('--pink'),
     backgroundColor: 'rgba(255, 107, 157, 0.1)',
     borderWidth: 3,
     tension: 0.4,
@@ -1441,7 +1564,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
     label: 'CTR (%)',
     data: ctr,
     type: 'line',
-    borderColor: '#ffd93d',
+    borderColor: themeVar('--yellow'),
     backgroundColor: 'rgba(255, 217, 61, 0.1)',
     borderWidth: 3,
     tension: 0.4,
@@ -1463,16 +1586,16 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             display: true,
             position: 'top',
             labels: {
-              color: '#e8e8f0',
+              color: themeVar('--text-primary'),
               font: { family: 'Syne', size: 12 },
               padding: 16
             }
           },
           tooltip: {
-            backgroundColor: '#1c1c2e',
-            titleColor: '#e8e8f0',
-            bodyColor: '#9999b5',
-            borderColor: '#2a2a40',
+            backgroundColor: themeVar('--surface-elevated'),
+            titleColor: themeVar('--text-primary'),
+            bodyColor: themeVar('--text-secondary'),
+            borderColor: themeVar('--border'),
             borderWidth: 1,
             padding: 12,
             displayColors: true,
@@ -1500,15 +1623,15 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             display: true,
             position: 'left',
             beginAtZero: true,
-            grid: { color: '#2a2a40', drawBorder: false },
+            grid: { color: themeVar('--border'), drawBorder: false },
             ticks: {
-              color: '#9999b5',
+              color: themeVar('--text-secondary'),
               font: { family: 'IBM Plex Mono', size: 11 }
             },
             title: {
               display: true,
               text: 'Clicks',
-              color: '#6c8fff',
+              color: themeVar('--blue'),
               font: { family: 'Syne', size: 12 }
             }
           },
@@ -1518,7 +1641,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             position: 'right',
             grid: { drawOnChartArea: false },
             ticks: {
-              color: '#9999b5',
+              color: themeVar('--text-secondary'),
               font: { family: 'IBM Plex Mono', size: 11 },
               callback: function(value) {
                 return '£' + value.toFixed(2);
@@ -1527,7 +1650,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             title: {
               display: true,
               text: 'CPC',
-              color: '#ff6b9d',
+              color: themeVar('--pink'),
               font: { family: 'Syne', size: 12 }
             }
           },
@@ -1537,7 +1660,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             position: 'right',
             grid: { drawOnChartArea: false },
             ticks: {
-              color: '#9999b5',
+              color: themeVar('--text-secondary'),
               font: { family: 'IBM Plex Mono', size: 11 },
               callback: function(value) {
                 return value.toFixed(1) + '%';
@@ -1546,14 +1669,14 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             title: {
               display: true,
               text: 'CTR',
-              color: '#ffd93d',
+              color: themeVar('--yellow'),
               font: { family: 'Syne', size: 12 }
             }
           },
           x: {
             grid: { display: false, drawBorder: false },
             ticks: {
-              color: '#9999b5',
+              color: themeVar('--text-secondary'),
               font: { family: 'IBM Plex Mono', size: 11 }
             }
           }
@@ -1567,10 +1690,10 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
 
     const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const YEAR_COLORS = {
-      2023: { bar: 'rgba(108,143,255,0.7)', border: '#6c8fff' },
-      2024: { bar: 'rgba(255,107,157,0.7)', border: '#ff6b9d' },
-      2025: { bar: 'rgba(0,212,170,0.7)',   border: '#00d4aa' },
-      2026: { bar: 'rgba(255,217,61,0.7)',   border: '#ffd93d' },
+      2023: { bar: 'rgba(108,143,255,0.7)', border: themeVar('--blue') },
+      2024: { bar: 'rgba(255,107,157,0.7)', border: themeVar('--pink') },
+      2025: { bar: 'rgba(0,212,170,0.7)',   border: themeVar('--accent') },
+      2026: { bar: 'rgba(255,217,61,0.7)',   border: themeVar('--yellow') },
     };
 
     // Group history by year and month number
@@ -1611,13 +1734,13 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
         legend: {
           display: true,
           position: 'top',
-          labels: { color: '#e8e8f0', font: { family: 'Syne', size: 12 }, padding: 16 }
+          labels: { color: themeVar('--text-primary'), font: { family: 'Syne', size: 12 }, padding: 16 }
         },
         tooltip: {
-          backgroundColor: '#1c1c2e',
-          titleColor: '#e8e8f0',
-          bodyColor: '#9999b5',
-          borderColor: '#2a2a40',
+          backgroundColor: themeVar('--surface-elevated'),
+          titleColor: themeVar('--text-primary'),
+          bodyColor: themeVar('--text-secondary'),
+          borderColor: themeVar('--border'),
           borderWidth: 1,
           padding: 12,
           callbacks: {
@@ -1632,13 +1755,13 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
       },
       scales: {
         x: {
-          ticks: { color: '#9999b5', font: { family: 'Syne', size: 11 } },
-          grid: { color: 'rgba(42,42,64,0.5)' }
+          ticks: { color: themeVar('--text-secondary'), font: { family: 'Syne', size: 11 } },
+          grid: { color: themeVar('--border') }
         },
         y: {
-          ticks: { color: '#9999b5', font: { family: 'IBM Plex Mono', size: 11 } },
-          grid: { color: 'rgba(42,42,64,0.5)' },
-          title: { display: true, text: yLabel, color: '#9999b5', font: { family: 'Syne', size: 11 } }
+          ticks: { color: themeVar('--text-secondary'), font: { family: 'IBM Plex Mono', size: 11 } },
+          grid: { color: themeVar('--border') },
+          title: { display: true, text: yLabel, color: themeVar('--text-secondary'), font: { family: 'Syne', size: 11 } }
         }
       }
     });
@@ -1981,7 +2104,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             label: 'CPC (£)',
             data: cpcData,
             type: 'line',
-            borderColor: '#ff6b9d',
+            borderColor: themeVar('--pink'),
             backgroundColor: 'rgba(255,107,157,0.1)',
             borderWidth: 3,
             tension: 0.4,
@@ -1992,7 +2115,7 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
             label: 'CTR (%)',
             data: ctrData,
             type: 'line',
-            borderColor: '#ffd93d',
+            borderColor: themeVar('--yellow'),
             backgroundColor: 'rgba(255,217,61,0.1)',
             borderWidth: 3,
             tension: 0.4,
@@ -2016,11 +2139,11 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
         plugins: {
           legend: {
             display: true, position: 'top',
-            labels: { color: '#e8e8f0', font: { family: 'Syne', size: 12 }, padding: 16 }
+            labels: { color: themeVar('--text-primary'), font: { family: 'Syne', size: 12 }, padding: 16 }
           },
           tooltip: {
-            backgroundColor: '#1c1c2e', titleColor: '#e8e8f0',
-            bodyColor: '#9999b5', borderColor: '#2a2a40', borderWidth: 1, padding: 12,
+            backgroundColor: themeVar('--surface-elevated'), titleColor: themeVar('--text-primary'),
+            bodyColor: themeVar('--text-secondary'), borderColor: themeVar('--border'), borderWidth: 1, padding: 12,
             callbacks: {
               label: function(context) {
                 if (context.dataset.label.includes('CPC')) return 'CPC: £' + (context.parsed.y || 0).toFixed(3);
@@ -2032,26 +2155,26 @@ tr.clickable:hover td { background: rgba(0,212,170,0.06); }
         },
         scales: {
           x: {
-            ticks: { color: '#9999b5', font: { family: 'Syne', size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 25 },
-            grid: { color: 'rgba(42,42,64,0.5)' }
+            ticks: { color: themeVar('--text-secondary'), font: { family: 'Syne', size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 25 },
+            grid: { color: themeVar('--border') }
           },
           y: {
             type: 'linear', position: 'left', beginAtZero: true,
-            ticks: { color: '#9999b5', font: { family: 'IBM Plex Mono', size: 11 } },
-            grid: { color: 'rgba(42,42,64,0.5)' },
-            title: { display: true, text: 'Clicks', color: '#6c8fff', font: { family: 'Syne', size: 11 } }
+            ticks: { color: themeVar('--text-secondary'), font: { family: 'IBM Plex Mono', size: 11 } },
+            grid: { color: themeVar('--border') },
+            title: { display: true, text: 'Clicks', color: themeVar('--blue'), font: { family: 'Syne', size: 11 } }
           },
           y1: {
             type: 'linear', position: 'right',
-            ticks: { color: '#9999b5', font: { family: 'IBM Plex Mono', size: 11 }, callback: v => '£' + (v||0).toFixed(3) },
+            ticks: { color: themeVar('--text-secondary'), font: { family: 'IBM Plex Mono', size: 11 }, callback: v => '£' + (v||0).toFixed(3) },
             grid: { drawOnChartArea: false },
-            title: { display: true, text: 'CPC', color: '#ff6b9d', font: { family: 'Syne', size: 11 } }
+            title: { display: true, text: 'CPC', color: themeVar('--pink'), font: { family: 'Syne', size: 11 } }
           },
           y2: {
             type: 'linear', position: 'right',
-            ticks: { color: '#9999b5', font: { family: 'IBM Plex Mono', size: 11 }, callback: v => (v||0).toFixed(2) + '%' },
+            ticks: { color: themeVar('--text-secondary'), font: { family: 'IBM Plex Mono', size: 11 }, callback: v => (v||0).toFixed(2) + '%' },
             grid: { drawOnChartArea: false },
-            title: { display: true, text: 'CTR', color: '#ffd93d', font: { family: 'Syne', size: 11 } }
+            title: { display: true, text: 'CTR', color: themeVar('--yellow'), font: { family: 'Syne', size: 11 } }
           }
         }
       }

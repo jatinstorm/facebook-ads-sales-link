@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Series Projection Dashboard</title>
+<script>
+  // Apply saved theme before first paint to avoid a flash (dark is the default).
+  (function(){
+    try {
+      var t = localStorage.getItem('kdp-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,6 +35,32 @@
       --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
       --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
     }
+  }
+  /* Explicit theme via toggle — wins over the OS-preference media query above.
+     Dark is the default and mirrors the dark palette exactly. */
+  html[data-theme="dark"] {
+    --t1: #f0f0f0; --t2: #9ca3af; --t3: #6b7280;
+    --bg0: #111113; --bg1: #1a1a1e; --bg2: #242428; --b1: #333338;
+    --accent-alc-bg: #1e1b4b; --accent-kenp-bg: #022c22; --accent-pod-bg: #451a03;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
+    /* nav (theme-aware replacements for previously-hardcoded colors) */
+    --nav-bg: rgba(12,10,15,0.85); --nav-border: rgba(255,255,255,0.06);
+    --nav-btn-border: rgba(255,255,255,0.1); --nav-dropdown-bg: #1c1c2e;
+    --nav-text: #9999b5; --nav-text-hover: #e8e8f0; --nav-link: #e8e8f0;
+    --hover-bg: rgba(255,255,255,0.05); --dropdown-shadow: rgba(0,0,0,0.4);
+  }
+  html[data-theme="light"] {
+    --t1: #1a1a1a; --t2: #6b7280; --t3: #9ca3af;
+    --bg0: #f7f7f8; --bg1: #ffffff; --bg2: #f3f4f6; --b1: #e5e7eb;
+    --accent-alc-bg: #eef2ff; --accent-kenp-bg: #ecfdf5; --accent-pod-bg: #fffbeb;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+    /* nav */
+    --nav-bg: rgba(255,255,255,0.85); --nav-border: rgba(0,0,0,0.08);
+    --nav-btn-border: rgba(0,0,0,0.12); --nav-dropdown-bg: #ffffff;
+    --nav-text: #6b7280; --nav-text-hover: #1a1a1a; --nav-link: #1a1a1a;
+    --hover-bg: rgba(0,0,0,0.05); --dropdown-shadow: rgba(140,149,159,0.3);
   }
   body {
     font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -137,17 +174,44 @@
 
   @media (max-width: 900px) { .channel-grid { grid-template-columns: 1fr; } }
   @media (max-width: 700px) { .metric-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ── Theme toggle ── */
+  .theme-toggle { display: inline-flex; align-items: center; gap: 10px; }
+  .theme-toggle-label {
+    font-family: 'Syne', sans-serif; font-size: 12px; color: var(--nav-text);
+    user-select: none; white-space: nowrap;
+  }
+  .theme-switch {
+    position: relative; width: 46px; height: 24px; flex: none; padding: 0;
+    border-radius: 999px; border: 1px solid var(--nav-btn-border);
+    background: var(--bg2); cursor: pointer; transition: background 0.2s;
+  }
+  .theme-switch .knob {
+    position: absolute; top: 1px; left: 1px; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--accent-alc);
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+    transition: transform 0.2s;
+  }
+  html[data-theme="light"] .theme-switch .knob { transform: translateX(22px); }
 </style>
 </head>
 <body>
 
-<nav style="position:sticky;top:0;z-index:100;background:rgba(12,10,15,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:52px;">
-  <a href="/home" style="font-family:'Syne',sans-serif;font-size:13px;color:#9999b5;text-decoration:none;display:flex;align-items:center;gap:8px;" onmouseover="this.style.color='#e8e8f0'" onmouseout="this.style.color='#9999b5'">← Home</a>
-  <div style="position:relative;">
-    <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'" style="background:none;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:6px 14px;color:#9999b5;font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;">Dashboards ▾</button>
-    <div style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:#1c1c2e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:8px;min-width:200px;box-shadow:0 16px 40px rgba(0,0,0,0.4);">
-      <a href="/ads" style="display:block;padding:10px 14px;color:#e8e8f0;text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">📊 Ads Overview</a>
-      <a href="/series" style="display:block;padding:10px 14px;color:#e8e8f0;text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='none'">📈 Series Projections</a>
+<nav style="position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(12px);border-bottom:1px solid var(--nav-border);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:52px;">
+  <a href="/home" style="font-family:'Syne',sans-serif;font-size:13px;color:var(--nav-text);text-decoration:none;display:flex;align-items:center;gap:8px;" onmouseover="this.style.color='var(--nav-text-hover)'" onmouseout="this.style.color='var(--nav-text)'">← Home</a>
+  <div style="display:flex;align-items:center;gap:20px;">
+    <div class="theme-toggle">
+      <span class="theme-toggle-label" id="themeLabel">Dark Mode</span>
+      <button id="themeSwitch" class="theme-switch" role="switch" aria-checked="false" aria-label="Toggle light and dark theme">
+        <span class="knob" id="themeKnob">🌙</span>
+      </button>
+    </div>
+    <div style="position:relative;">
+      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'" style="background:none;border:1px solid var(--nav-btn-border);border-radius:8px;padding:6px 14px;color:var(--nav-text);font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;">Dashboards ▾</button>
+      <div style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--nav-dropdown-bg);border:1px solid var(--nav-border);border-radius:12px;padding:8px;min-width:200px;box-shadow:0 16px 40px var(--dropdown-shadow);">
+        <a href="/ads" style="display:block;padding:10px 14px;color:var(--nav-link);text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='none'">📊 Ads Overview</a>
+        <a href="/series" style="display:block;padding:10px 14px;color:var(--nav-link);text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='none'">📈 Series Projections</a>
+      </div>
     </div>
   </div>
 </nav>
@@ -638,6 +702,33 @@ async function init() {
 }
 
 init();
+
+// ── Theme toggle ──
+// SVG/HTML charts here are styled with live CSS variables (var(--accent-*), var(--t2/--t3)),
+// so they restyle automatically when the data-theme attribute flips — no re-render needed.
+(function () {
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  }
+  function updateThemeUI() {
+    var light = currentTheme() === "light";
+    var sw = document.getElementById("themeSwitch");
+    var lbl = document.getElementById("themeLabel");
+    var knob = document.getElementById("themeKnob");
+    if (sw) sw.setAttribute("aria-checked", String(light));
+    if (lbl) lbl.textContent = light ? "Light Mode" : "Dark Mode";
+    if (knob) knob.textContent = light ? "☀️" : "🌙";
+  }
+  function toggleTheme() {
+    var light = currentTheme() !== "light";
+    document.documentElement.setAttribute("data-theme", light ? "light" : "dark");
+    try { localStorage.setItem("kdp-theme", light ? "light" : "dark"); } catch (e) {}
+    updateThemeUI();
+  }
+  updateThemeUI();
+  var sw = document.getElementById("themeSwitch");
+  if (sw) sw.addEventListener("click", toggleTheme);
+})();
 </script>
 </body>
 </html>
