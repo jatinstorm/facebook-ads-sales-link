@@ -88,7 +88,7 @@ body {
   padding: 32px 40px;
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 0;
+  top: 52px; /* sit below the sticky nav (52px tall) instead of overlapping it */
   z-index: 100;
   backdrop-filter: blur(20px);
 }
@@ -606,7 +606,7 @@ html[data-theme="light"] .theme-switch .knob { transform: translateX(22px); }
 </head>
 <body>
 
-<nav style="position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(12px);border-bottom:1px solid var(--nav-border);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:52px;">
+<nav style="position:sticky;top:0;z-index:200;background:var(--nav-bg);backdrop-filter:blur(12px);border-bottom:1px solid var(--nav-border);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:52px;">
   <a href="/home" style="font-family:'Syne',sans-serif;font-size:13px;color:var(--text-secondary);text-decoration:none;display:flex;align-items:center;gap:8px;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-secondary)'">← Home</a>
   <div style="display:flex;align-items:center;gap:20px;">
     <div class="theme-toggle">
@@ -615,15 +615,18 @@ html[data-theme="light"] .theme-switch .knob { transform: translateX(22px); }
         <span class="knob" id="themeKnob">🌙</span>
       </button>
     </div>
-    <div style="position:relative;">
-      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'" style="background:none;border:1px solid var(--nav-btn-border);border-radius:8px;padding:6px 14px;color:var(--text-secondary);font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;">Dashboards ▾</button>
-      <div style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--surface-elevated);border:1px solid var(--nav-border);border-radius:12px;padding:8px;min-width:200px;box-shadow:0 16px 40px var(--dropdown-shadow);">
-        <a href="/ads" style="display:block;padding:10px 14px;color:var(--text-primary);text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='none'">📊 Ads Overview</a>
-        <a href="/series" style="display:block;padding:10px 14px;color:var(--text-primary);text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='none'">📈 Series Projections</a>
-      </div>
+    <div>
+      <button id="dashBtn" onclick="toggleDashMenu(event)" style="background:none;border:1px solid var(--nav-btn-border);border-radius:8px;padding:6px 14px;color:var(--text-secondary);font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;">Dashboards ▾</button>
     </div>
   </div>
 </nav>
+
+<!-- Dashboards menu lives OUTSIDE the nav: an element with backdrop-filter clips
+     overflowing descendants, so a menu nested in the nav would be cut off below it. -->
+<div id="dashMenu" style="display:none;position:fixed;right:40px;top:60px;z-index:1000;background:var(--surface-elevated);border:1px solid var(--nav-border);border-radius:12px;padding:8px;min-width:200px;box-shadow:0 16px 40px var(--dropdown-shadow);">
+  <a href="/ads" style="display:block;padding:10px 14px;color:var(--text-primary);text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='none'">📊 Ads Overview</a>
+  <a href="/series" style="display:block;padding:10px 14px;color:var(--text-primary);text-decoration:none;font-family:'Syne',sans-serif;font-size:13px;border-radius:8px;" onmouseover="this.style.background='var(--hover-bg)'" onmouseout="this.style.background='none'">📈 Series Projections</a>
+</div>
 
 <div class="header">
   <div class="header-top">
@@ -1158,6 +1161,19 @@ html[data-theme="light"] .theme-switch .knob { transform: translateX(22px); }
     applyChartTheme();
     rerenderCurrentView();
   }
+
+  // ── Dashboards dropdown (menu is fixed-positioned outside the nav) ──
+  function toggleDashMenu(e) {
+    e.stopPropagation();
+    const m = document.getElementById('dashMenu');
+    m.style.display = m.style.display === 'block' ? 'none' : 'block';
+  }
+  document.addEventListener('click', function(e) {
+    const m = document.getElementById('dashMenu');
+    if (!m || m.style.display !== 'block') return;
+    if (m.contains(e.target) || e.target.id === 'dashBtn') return;
+    m.style.display = 'none';
+  });
 
   document.addEventListener('DOMContentLoaded', function() {
     applyChartTheme();
