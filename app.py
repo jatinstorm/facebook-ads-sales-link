@@ -261,6 +261,18 @@ def kdp():
         return html, 200, {'Content-Type': 'text/html'}
     except Exception as e:
         return f"KDP dashboard not available: {e}", 500
+    
+@app.route("/afd", methods=["GET"])
+def afd():
+    try:
+        from google.cloud import storage as gcs
+        gcs_client = gcs.Client()
+        bucket = gcs_client.bucket('storm-series-dashboard')
+        blob = bucket.blob('all-formats-dashboard.html')
+        html = blob.download_as_text()
+        return html, 200, {'Content-Type': 'text/html'}
+    except Exception as e:
+        return f"AFD dashboard not available: {e}", 500
 
 
 

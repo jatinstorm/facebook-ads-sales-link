@@ -27,6 +27,8 @@
   --audio-glow: rgba(124,92,191,0.07);
   --kdp: #1d5c9e;
   --kdp-glow: rgba(29,92,158,0.08);
+  --formats: #c0436a;
+  --formats-glow: rgba(192,67,106,0.08);
 }
 
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', sans-serif; overflow-x: hidden; }
@@ -115,8 +117,8 @@ header {
 /* —— CARDS —— */
 .cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
   opacity: 0; animation: fadeUp 0.9s 0.75s ease forwards;
 }
 
@@ -124,8 +126,8 @@ header {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 36px 36px 30px;
+  border-radius: 16px;
+  padding: 22px 22px 18px;
   cursor: pointer;
   text-decoration: none;
   color: inherit;
@@ -136,7 +138,7 @@ header {
 
 .card::before {
   content: '';
-  position: absolute; inset: 0; border-radius: 20px;
+  position: absolute; inset: 0; border-radius: 16px;
   opacity: 0; transition: opacity 0.35s; pointer-events: none;
 }
 
@@ -144,6 +146,7 @@ header {
 .card-series::before { background: radial-gradient(ellipse 80% 60% at 80% 20%, var(--teal-glow), transparent); }
 .card-audio::before  { background: radial-gradient(ellipse 80% 60% at 20% 20%, var(--audio-glow), transparent); }
 .card-kdp::before    { background: radial-gradient(ellipse 80% 60% at 50% 20%, var(--kdp-glow), transparent); }
+.card-formats::before { background: radial-gradient(ellipse 80% 60% at 80% 20%, var(--formats-glow), transparent); }
 
 .card:hover { transform: translateY(-5px); border-color: var(--border-hover); }
 .card:hover::before { opacity: 1; }
@@ -151,28 +154,31 @@ header {
 .card-series:hover { box-shadow: 0 20px 56px rgba(26,158,148,0.08); }
 .card-audio:hover  { box-shadow: 0 20px 56px rgba(124,92,191,0.1); }
 .card-kdp:hover    { box-shadow: 0 20px 56px rgba(29,92,158,0.1); }
+.card-formats:hover { box-shadow: 0 20px 56px rgba(192,67,106,0.1); }
 
 .card-top {
   display: flex; justify-content: space-between; align-items: flex-start;
-  margin-bottom: 28px;
+  margin-bottom: 16px;
 }
 
 .card-icon {
-  width: 48px; height: 48px; border-radius: 12px;
+  width: 40px; height: 40px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
 }
 .card-ads .card-icon    { background: rgba(0,0,0,0.05); }
 .card-series .card-icon { background: rgba(26,158,148,0.08); }
 .card-audio .card-icon  { background: rgba(124,92,191,0.1); }
 .card-kdp .card-icon    { background: rgba(29,92,158,0.1); }
-.card-icon svg { width: 22px; height: 22px; }
+.card-formats .card-icon { background: rgba(192,67,106,0.1); }
+.card-icon svg { width: 20px; height: 20px; }
 .card-ads .card-icon svg    { stroke: var(--gold); }
 .card-series .card-icon svg { stroke: var(--teal); }
 .card-audio .card-icon svg  { stroke: var(--audio); }
 .card-kdp .card-icon svg    { stroke: var(--kdp); }
+.card-formats .card-icon svg { stroke: var(--formats); }
 
 .card-arrow {
-  width: 36px; height: 36px; border-radius: 50%;
+  width: 30px; height: 30px; border-radius: 50%;
   border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
   transition: all 0.3s;
@@ -182,49 +188,53 @@ header {
 .card-series:hover .card-arrow { background: rgba(26,158,148,0.06); }
 .card-audio:hover .card-arrow  { background: rgba(124,92,191,0.08); }
 .card-kdp:hover .card-arrow    { background: rgba(29,92,158,0.08); }
+.card-formats:hover .card-arrow { background: rgba(192,67,106,0.08); }
 .card-arrow svg { width: 14px; height: 14px; stroke: var(--muted); transition: stroke 0.3s; }
 .card-ads:hover .card-arrow svg    { stroke: var(--gold); }
 .card-series:hover .card-arrow svg { stroke: var(--teal); }
 .card-audio:hover .card-arrow svg  { stroke: var(--audio); }
 .card-kdp:hover .card-arrow svg    { stroke: var(--kdp); }
+.card-formats:hover .card-arrow svg { stroke: var(--formats); }
 
 .card-label {
   font-family: 'DM Mono', monospace;
   font-size: 10px; letter-spacing: 0.12em;
-  text-transform: uppercase; margin-bottom: 10px;
+  text-transform: uppercase; margin-bottom: 7px;
 }
 .card-ads .card-label    { color: var(--gold); }
 .card-series .card-label { color: var(--teal); }
 .card-audio .card-label  { color: var(--audio); }
 .card-kdp .card-label    { color: var(--kdp); }
+.card-formats .card-label { color: var(--formats); }
 
 .card-title {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 34px; font-weight: 400; line-height: 1.1;
-  margin-bottom: 12px; color: var(--text);
+  font-size: 25px; font-weight: 400; line-height: 1.1;
+  margin-bottom: 8px; color: var(--text);
 }
 
 .card-desc {
-  font-size: 13px; color: var(--muted);
-  line-height: 1.65; margin-bottom: 28px;
+  font-size: 12px; color: var(--muted);
+  line-height: 1.5; margin-bottom: 16px;
 }
 
 .card-footer {
-  display: flex; gap: 24px;
-  padding-top: 22px;
+  display: flex; gap: 16px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
 }
 
-.card-stat { display: flex; flex-direction: column; gap: 3px; }
+.card-stat { display: flex; flex-direction: column; gap: 2px; }
 
 .card-stat-value {
   font-family: 'DM Mono', monospace;
-  font-size: 17px; font-weight: 400;
+  font-size: 15px; font-weight: 400;
 }
 .card-ads .card-stat-value    { color: var(--gold); }
 .card-series .card-stat-value { color: var(--teal); }
 .card-audio .card-stat-value  { color: var(--audio); }
 .card-kdp .card-stat-value    { color: var(--kdp); }
+.card-formats .card-stat-value { color: var(--formats); }
 
 .card-stat-label {
   font-size: 10px; color: var(--muted);
@@ -265,6 +275,9 @@ footer {
   50%       { transform: scale(2); opacity: 0; }
 }
 
+@media (max-width: 960px) {
+  .cards { grid-template-columns: 1fr 1fr; }
+}
 @media (max-width: 720px) {
   .page { padding: 0 20px; }
   .cards { grid-template-columns: 1fr; }
@@ -425,6 +438,38 @@ footer {
           </div>
           <div class="card-stat">
             <div class="card-stat-value">Monthly</div>
+            <div class="card-stat-label">Refresh</div>
+          </div>
+        </div>
+      </a>
+
+      <a class="card card-formats" href="/afd">
+        <div class="card-top">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div class="card-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 17L17 7M17 7H7M17 7v10"/>
+            </svg>
+          </div>
+        </div>
+        <div class="card-label">Unified View</div>
+        <div class="card-title">All Formats<br>Dashboard</div>
+        <div class="card-desc">Combined performance across eBook, print and audio — revenue, units and trends in a single cross-format view.</div>
+        <div class="card-footer">
+          <div class="card-stat">
+            <div class="card-stat-value">Live</div>
+            <div class="card-stat-label">Status</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-value">3</div>
+            <div class="card-stat-label">Formats</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-value">Daily</div>
             <div class="card-stat-label">Refresh</div>
           </div>
         </div>
