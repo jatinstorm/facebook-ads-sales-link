@@ -98,17 +98,15 @@ def weekly():
         # Generate weekly reports
         data = request.get_json(silent=True) or {}
         date_arg = data.get("date")
-        files = generate_all_weekly_reports(date_arg)
+        # Generate reports only for the active editions (exact match inside).
+        files = generate_all_weekly_reports(date_arg, active_editions=active_editions)
 
-        # Filter to active editions only
-        active_files = [f for f in files if any(f"_{eid}" in f or f"_{eid}_" in f for eid in active_editions)]
-
-        sent = send_reports("weekly", active_files)
+        sent = send_reports("weekly", files)
 
         return jsonify({
             "status": "success",
             "active_books": len(active_editions),
-            "generated": len(active_files),
+            "generated": len(files),
             "sent": sent,
         }), 200
     except Exception as e:

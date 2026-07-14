@@ -449,7 +449,7 @@ def generate_territory_report(title, edition_id, territory, df, dates):
 # RUN ALL
 # ------------------------------------------------------------
 
-def generate_all_weekly_reports(date=None):
+def generate_all_weekly_reports(date=None, active_editions=None):
 
     df = fetch_weekly_data(date)
 
@@ -465,6 +465,14 @@ def generate_all_weekly_reports(date=None):
     dates = [start + timedelta(days=i) for i in range(7)]
 
     books = df[["Title", "Edition_ID"]].drop_duplicates()
+
+    # Only report on books that are still active (exact Edition_ID match).
+    # Substring filename matching used to keep finished books whose IDs
+    # merely *contained* an active ID (e.g. edition 1 kept 1728).
+    if active_editions is not None:
+        active_set = {int(e) for e in active_editions if pd.notna(e)}
+        eid_num = pd.to_numeric(books["Edition_ID"], errors="coerce").astype("Int64")
+        books = books[eid_num.isin(active_set)]
 
     files = []
 
