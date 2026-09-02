@@ -194,9 +194,9 @@ def send_reports(report_type, local_filepaths):
             continue
 
         messages = {
-            "scorecard": f"📊 Daily Facebook Ads Analysis: *{book_title}*<@U053NJZ5DT7> <@U0A861XPXK3> <@U0BLEASBWRM>",
-            "genre": f"📈 Genre Analysis: *{book_title}* <@U053NJZ5DT7> <@U0A861XPXK3> <@U0BLEASBWRM>",
-            "weekly": f"📋 Weekly Report: *{book_title}* <@U053NJZ5DT7>  <@U0A861XPXK3> <@U0BLEASBWRM>",
+            "scorecard": f"📊 Daily Facebook Ads Analysis: *{book_title}*<@U0A861XPXK3> <@U0BLEASBWRM>",
+            "genre": f"📈 Genre Analysis: *{book_title}* <@U0A861XPXK3> <@U0BLEASBWRM>",
+            "weekly": f"📋 Weekly Report: *{book_title}* <@U0A861XPXK3> <@U0BLEASBWRM>",
         }
 
 
