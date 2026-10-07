@@ -284,6 +284,18 @@ def tworivers():
     except Exception as e:
         return f"Two Rivers dashboard not available: {e}", 500
 
+@app.route("/library", methods=["GET"])
+def library():
+    try:
+        from google.cloud import storage as gcs
+        gcs_client = gcs.Client()
+        bucket = gcs_client.bucket('storm-series-dashboard')
+        blob = bucket.blob('library-dashboard.html')
+        html = blob.download_as_text()
+        return html, 200, {'Content-Type': 'text/html'}
+    except Exception as e:
+        return f"Library dashboard not available: {e}", 500
+
 
 
 
